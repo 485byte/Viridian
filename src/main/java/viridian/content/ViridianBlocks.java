@@ -2,8 +2,6 @@ package viridian.content;
 
 import mindustry.world.Block;
 import mindustry.type.Category;
-import mindustry.type.ItemStack;
-import mindustry.content.Items;
 
 public class ViridianBlocks {
 
@@ -20,10 +18,6 @@ public class ViridianBlocks {
         );
 
         testBlock.category = Category.effect;
-
-        testBlock.requirements(
-            ItemStack.with(Items.copper, 1)
-        );
 
         System.out.println("=== VIRIDIAN: BLOCK SETUP COMPLETE ===");
     }
