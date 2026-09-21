@@ -1,21 +1,16 @@
-package viridian.content;
+package viridian;
 
-import mindustry.world.Block;
-import mindustry.type.Category;
-import mindustry.type.ItemStack;
-import mindustry.content.Items;
+import mindustry.mod.Mod;
+import viridian.content.ViridianBlocks;
 
-public class ViridianBlocks {
+public class ViridianMod extends Mod {
 
-    public static Block testBlock;
+    public ViridianMod() {
+        System.out.println("Viridian Java loaded!");
+    }
 
-    public static void load() {
-        testBlock = new Block("viridian-test-block");
-
-        testBlock.category = Category.effect;
-        testBlock.requirements(
-            Category.effect,
-            ItemStack.with(Items.copper, 1)
-        );
+    @Override
+    public void loadContent() {
+        ViridianBlocks.load();
     }
 }
