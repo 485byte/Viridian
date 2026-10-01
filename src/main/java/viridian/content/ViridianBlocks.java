@@ -19,6 +19,7 @@ public class ViridianBlocks {
 
         heart.size = 2;
         heart.health = 1000;
+        heart.destructible = true;
 
         heart.requirements(
             Category.effect,
