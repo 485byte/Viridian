@@ -37,13 +37,26 @@ public class ViridianBlocks {
 
                 addBar(
                     "bio-energy",
-                    (HeartBuild entity) -> new Bar(
-                        () -> "Bio-Energy",
-                        () -> Color.yellow,
-                        () -> entity.maxBioEnergy <= 0f
-                            ? 0f
-                            : entity.bioEnergy / entity.maxBioEnergy
-                    )
+                    (Building entity) -> {
+
+                        if (!(entity instanceof HeartBuild)) {
+                            return new Bar(
+                                "Bio-Energy",
+                                Color.yellow,
+                                () -> 0f
+                            );
+                        }
+
+                        HeartBuild heart = (HeartBuild)entity;
+
+                        return new Bar(
+                            "Bio-Energy",
+                            Color.yellow,
+                            () -> heart.maxBioEnergy <= 0f
+                                ? 0f
+                                : heart.bioEnergy / heart.maxBioEnergy
+                        );
+                    }
                 );
             }
         };
