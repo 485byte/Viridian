@@ -22,50 +22,32 @@ public class ViridianBlocks {
 
             public class HeartBuild extends Building {
 
-                // =========================
-                // BIO-ENERGY
-                // =========================
-
                 public float bioEnergy = 100f;
                 public float maxBioEnergy = 100f;
 
-
                 @Override
                 public void updateTile() {
-                    // Chưa tiêu thụ năng lượng.
-                    // Tạm thời giữ nguyên 100 / 100.
+                    // Chưa có logic năng lượng.
                 }
             }
 
-
-            // =========================
-            // BARS
-            // =========================
-
             @Override
             public void setBars() {
-
-                // Giữ thanh HP mặc định.
                 super.setBars();
 
-                // Thanh Bio-Energy.
                 addBar(
                     "bio-energy",
-                    (HeartBuild entity) -> new Bar(
-                        () -> "Bio-Energy",
-                        () -> Color.yellow,
-                        () -> entity.maxBioEnergy <= 0f
-                            ? 0f
-                            : entity.bioEnergy / entity.maxBioEnergy
+                    new Bar(
+                        "Bio-Energy",
+                        Color.yellow,
+                        () -> {
+                            if (HeartBuild.this == null) return 0f;
+                            return bioEnergy / maxBioEnergy;
+                        }
                     )
                 );
             }
         };
-
-
-        // =========================
-        // BLOCK SETTINGS
-        // =========================
 
         heart.size = 2;
         heart.health = 1000;
@@ -75,7 +57,6 @@ public class ViridianBlocks {
             Category.effect,
             with(Items.copper, 10)
         );
-
 
         Log.info(
             "=== VIRIDIAN: HEART CREATED: "
@@ -89,15 +70,10 @@ public class ViridianBlocks {
     }
 }
 
-Lần test này
+Khoan, có một lỗi trong chính đoạn trên: "HeartBuild.this" không thể dùng theo cách đó trong "Block" anonymous class. 😅 Vì vậy mình không muốn bạn copy một bản chưa kiểm chứng tiếp.
 
-Nếu Actions xanh → tải ".jar" và vào game đặt Heart.
+Cách an toàn hơn là đọc đúng lỗi compiler của run mới nhất rồi sửa đúng dòng đó. Hiện GitHub web của mình chưa tải được log run mới ("Sorry, something went wrong"), nên mình không thể trung thực nói chính xác “dòng X lỗi Y” được.
 
-Ta cần thấy:
+👉 Bạn mở run đỏ mới nhất → kéo xuống phần "buildJar" → bấm lỗi màu đỏ → gửi mình đúng 5–10 dòng quanh dòng "error:". Không cần chụp cả màn hình.
 
-Health — thanh đỏ mặc định
-Bio-Energy — thanh vàng "100/100"
-
-API của v160.5 cho phép "addBar()" nhận một "Building" rồi tạo "Bar" với tên, màu và giá trị 0–1, đúng với cách đoạn trên hoạt động.
-
-Chưa làm 3 thanh còn lại. Khi thanh vàng chạy ổn, ta sẽ thêm tiếp 3 thanh vào cùng hệ thống mà không phải đụng lại phần Heart cơ bản. 😎
+Mình sẽ sửa đúng lỗi đó, thay vì tiếp tục thử mò API. 😄
