@@ -47,14 +47,10 @@ public class ViridianBlocks {
                             );
                         }
 
-                        HeartBuild heart = (HeartBuild)entity;
-
                         return new Bar(
                             "Bio-Energy",
                             Color.purple,
-                            () -> heart.maxBioEnergy <= 0f
-                                ? 0f
-                                : heart.bioEnergy / heart.maxBioEnergy
+                            () -> 1f
                         );
                     }
                 );
