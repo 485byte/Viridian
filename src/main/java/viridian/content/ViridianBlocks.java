@@ -17,7 +17,7 @@ public class ViridianBlocks {
 
         testBlock = new Block("viridian-test-block");
 
-        testBlock.size = 1;
+        testBlock.size = 3;
         testBlock.health = 100;
 
         testBlock.requirements(
