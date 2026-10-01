@@ -4,6 +4,7 @@ import arc.util.Log;
 import mindustry.content.Items;
 import mindustry.type.Category;
 import mindustry.world.Block;
+import mindustry.world.Building;
 
 import static mindustry.type.ItemStack.with;
 
@@ -15,7 +16,25 @@ public class ViridianBlocks {
 
         Log.info("=== VIRIDIAN: BLOCK LOAD START ===");
 
-        heart = new Block("viridian-heart");
+        heart = new Block("viridian-heart") {
+
+            @Override
+            public void init() {
+                super.init();
+            }
+
+            public class HeartBuild extends Building {
+
+                public float bioEnergy = 0f;
+                public float maxBioEnergy = 100f;
+
+                @Override
+                public void updateTile() {
+                    // Chưa có logic năng lượng.
+                    // Để trống ở v0.2.
+                }
+            }
+        };
 
         heart.size = 2;
         heart.health = 1000;
