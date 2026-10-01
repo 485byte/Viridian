@@ -18,11 +18,6 @@ public class ViridianBlocks {
 
         heart = new Block("viridian-heart") {
 
-            @Override
-            public void init() {
-                super.init();
-            }
-
             public class HeartBuild extends Building {
 
                 public float bioEnergy = 0f;
@@ -31,7 +26,6 @@ public class ViridianBlocks {
                 @Override
                 public void updateTile() {
                     // Chưa có logic năng lượng.
-                    // Để trống ở v0.2.
                 }
             }
         };
