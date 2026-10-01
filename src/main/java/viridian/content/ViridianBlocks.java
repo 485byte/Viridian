@@ -27,23 +27,22 @@ public class ViridianBlocks {
 
                 @Override
                 public void updateTile() {
-                    // Chưa có logic năng lượng.
                 }
             }
 
             @Override
             public void setBars() {
+
                 super.setBars();
 
                 addBar(
                     "bio-energy",
-                    new Bar(
-                        "Bio-Energy",
-                        Color.yellow,
-                        () -> {
-                            if (HeartBuild.this == null) return 0f;
-                            return bioEnergy / maxBioEnergy;
-                        }
+                    (HeartBuild entity) -> new Bar(
+                        () -> "Bio-Energy",
+                        () -> Color.yellow,
+                        () -> entity.maxBioEnergy <= 0f
+                            ? 0f
+                            : entity.bioEnergy / entity.maxBioEnergy
                     )
                 );
             }
@@ -70,10 +69,10 @@ public class ViridianBlocks {
     }
 }
 
-Khoan, có một lỗi trong chính đoạn trên: "HeartBuild.this" không thể dùng theo cách đó trong "Block" anonymous class. 😅 Vì vậy mình không muốn bạn copy một bản chưa kiểm chứng tiếp.
+Chỉ copy phần nằm trong khung code, từ "package viridian.content;" đến dấu "}" cuối cùng.
 
-Cách an toàn hơn là đọc đúng lỗi compiler của run mới nhất rồi sửa đúng dòng đó. Hiện GitHub web của mình chưa tải được log run mới ("Sorry, something went wrong"), nên mình không thể trung thực nói chính xác “dòng X lỗi Y” được.
+Sau đó:
 
-👉 Bạn mở run đỏ mới nhất → kéo xuống phần "buildJar" → bấm lỗi màu đỏ → gửi mình đúng 5–10 dòng quanh dòng "error:". Không cần chụp cả màn hình.
+Commit → Actions → Build Mod.
 
-Mình sẽ sửa đúng lỗi đó, thay vì tiếp tục thử mò API. 😄
+Nếu lần này vẫn đỏ, gửi mình toàn bộ phần "Annotations" mới. Lúc đó mình sẽ xử lý lỗi API tiếp theo, không đoán nữa. 😎
