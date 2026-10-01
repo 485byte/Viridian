@@ -1,24 +1,21 @@
-package viridian.content;
+package viridian;
 
 import arc.util.Log;
-import mindustry.type.Category;
-import mindustry.world.Block;
+import mindustry.mod.Mod;
+import viridian.content.ViridianBlocks;
 
-public class ViridianBlocks {
+public class ViridianMod extends Mod {
 
-    public static Block testBlock;
+    public ViridianMod() {
+        Log.info("=== VIRIDIAN: MOD CONSTRUCTOR ===");
+    }
 
-    public static void load() {
+    @Override
+    public void loadContent() {
+        Log.info("=== VIRIDIAN: LOAD CONTENT START ===");
 
-        Log.info("=== VIRIDIAN: BLOCK LOAD START ===");
+        ViridianBlocks.load();
 
-        testBlock = new Block("viridian-test-block");
-
-        testBlock.size = 1;
-        testBlock.health = 100;
-        testBlock.category = Category.effect;
-
-        Log.info("=== VIRIDIAN: BLOCK CREATED: " + testBlock.name + " ===");
-        Log.info("=== VIRIDIAN: BLOCK SETUP COMPLETE ===");
+        Log.info("=== VIRIDIAN: LOAD CONTENT END ===");
     }
 }
