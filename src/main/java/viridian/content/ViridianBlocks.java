@@ -68,11 +68,3 @@ public class ViridianBlocks {
         );
     }
 }
-
-Chỉ copy phần nằm trong khung code, từ "package viridian.content;" đến dấu "}" cuối cùng.
-
-Sau đó:
-
-Commit → Actions → Build Mod.
-
-Nếu lần này vẫn đỏ, gửi mình toàn bộ phần "Annotations" mới. Lúc đó mình sẽ xử lý lỗi API tiếp theo, không đoán nữa. 😎
