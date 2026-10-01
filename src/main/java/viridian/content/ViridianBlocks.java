@@ -42,7 +42,7 @@ public class ViridianBlocks {
                         if (!(entity instanceof HeartBuild)) {
                             return new Bar(
                                 "Bio-Energy",
-                                Color.yellow,
+                                Color.purple,
                                 () -> 0f
                             );
                         }
@@ -51,7 +51,7 @@ public class ViridianBlocks {
 
                         return new Bar(
                             "Bio-Energy",
-                            Color.yellow,
+                            Color.purple,
                             () -> heart.maxBioEnergy <= 0f
                                 ? 0f
                                 : heart.bioEnergy / heart.maxBioEnergy
