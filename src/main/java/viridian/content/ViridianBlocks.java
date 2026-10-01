@@ -20,6 +20,10 @@ public class ViridianBlocks {
 
         heart = new Block("viridian-heart") {
 
+            {
+                buildType = () -> new HeartBuild();
+            }
+
             public class HeartBuild extends Building {
 
                 public float bioEnergy = 100f;
@@ -32,13 +36,11 @@ public class ViridianBlocks {
 
             @Override
             public void setBars() {
-
                 super.setBars();
 
                 addBar(
                     "bio-energy",
                     (Building entity) -> {
-
                         if (!(entity instanceof HeartBuild)) {
                             return new Bar(
                                 "Bio-Energy",
@@ -47,14 +49,15 @@ public class ViridianBlocks {
                             );
                         }
 
-                        HeartBuild heart = (HeartBuild)entity;
+                        HeartBuild heartBuild = (HeartBuild) entity;
 
                         return new Bar(
                             "Bio-Energy",
                             Pal.powerBar,
-                            () -> heart.maxBioEnergy <= 0f
+                            () -> heartBuild.maxBioEnergy <= 0f
                                 ? 0f
-                                : heart.bioEnergy / heart.maxBioEnergy
+                                : heartBuild.bioEnergy
+                                    / heartBuild.maxBioEnergy
                         );
                     }
                 );
