@@ -1,24 +1,24 @@
 package viridian.content;
 
+import arc.util.Log;
 import mindustry.world.Block;
 import mindustry.type.Category;
 
 public class ViridianBlocks {
 
-    public static Block testBlock;
+public static Block testBlock;
 
-    public static void load() {
+public static void load() {
 
-        System.out.println("=== VIRIDIAN: BLOCK LOAD START ===");
+    Log.info("=== VIRIDIAN: BLOCK LOAD START ===");
 
-        testBlock = new Block("viridian-test-block");
+    testBlock = new Block("viridian-test-block");
 
-        System.out.println(
-            "=== VIRIDIAN: BLOCK CREATED: " + testBlock.name + " ==="
-        );
+    Log.info("=== VIRIDIAN: BLOCK CREATED: " + testBlock.name + " ===");
 
-        testBlock.category = Category.effect;
+    testBlock.category = Category.effect;
 
-        System.out.println("=== VIRIDIAN: BLOCK SETUP COMPLETE ===");
-    }
+    Log.info("=== VIRIDIAN: BLOCK SETUP COMPLETE ===");
+}
+
 }
