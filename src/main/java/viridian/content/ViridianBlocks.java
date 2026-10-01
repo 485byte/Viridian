@@ -1,9 +1,9 @@
 package viridian.content;
 
-import arc.graphics.Color;
 import arc.util.Log;
 import mindustry.content.Items;
 import mindustry.gen.Building;
+import mindustry.graphics.Pal;
 import mindustry.type.Category;
 import mindustry.ui.Bar;
 import mindustry.world.Block;
@@ -42,15 +42,19 @@ public class ViridianBlocks {
                         if (!(entity instanceof HeartBuild)) {
                             return new Bar(
                                 "Bio-Energy",
-                                Color.purple,
+                                Pal.powerBar,
                                 () -> 0f
                             );
                         }
 
+                        HeartBuild heart = (HeartBuild)entity;
+
                         return new Bar(
                             "Bio-Energy",
-                            Color.purple,
-                            () -> 1f
+                            Pal.powerBar,
+                            () -> heart.maxBioEnergy <= 0f
+                                ? 0f
+                                : heart.bioEnergy / heart.maxBioEnergy
                         );
                     }
                 );
