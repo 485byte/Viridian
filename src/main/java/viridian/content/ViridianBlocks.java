@@ -9,23 +9,23 @@ import static mindustry.type.ItemStack.with;
 
 public class ViridianBlocks {
 
-    public static Block testBlock;
+    public static Block heart;
 
     public static void load() {
 
         Log.info("=== VIRIDIAN: BLOCK LOAD START ===");
 
-        testBlock = new Block("viridian-test-block");
+        heart = new Block("viridian-heart");
 
-        testBlock.size = 3;
-        testBlock.health = 100;
+        heart.size = 2;
+        heart.health = 1000;
 
-        testBlock.requirements(
+        heart.requirements(
             Category.effect,
-            with(Items.copper, 1)
+            with(Items.copper, 10)
         );
 
-        Log.info("=== VIRIDIAN: BLOCK CREATED: " + testBlock.name + " ===");
+        Log.info("=== VIRIDIAN: HEART CREATED: " + heart.name + " ===");
         Log.info("=== VIRIDIAN: BLOCK SETUP COMPLETE ===");
     }
 }
