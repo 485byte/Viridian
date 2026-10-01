@@ -2,9 +2,9 @@ package viridian.content;
 
 import arc.util.Log;
 import mindustry.content.Items;
+import mindustry.gen.Building;
 import mindustry.type.Category;
 import mindustry.world.Block;
-import mindustry.world.Building;
 
 import static mindustry.type.ItemStack.with;
 
