@@ -51,7 +51,7 @@ public class ViridianBlocks {
 
 
         // =========================================================
-        // HEART ENERGY BAR
+        // HEART BIO-ENERGY BAR
         // =========================================================
 
         heart.addBar(
@@ -88,7 +88,7 @@ public class ViridianBlocks {
 
 
         // =========================================================
-        // VESSEL ENERGY BAR
+        // VESSEL BIO-ENERGY BAR
         // =========================================================
 
         vessel.addBar(
@@ -150,7 +150,7 @@ public class ViridianBlocks {
 
 
     // =============================================================
-    // FIND ADJACENT BUILDING
+    // GET ADJACENT BUILDING
     // =============================================================
 
     public static Building getAdjacentBuilding(
@@ -173,13 +173,13 @@ public class ViridianBlocks {
 
 
     // =============================================================
-    // HEART
+    // HEART BUILD
     // =============================================================
 
     public static class HeartBuild extends Building {
 
         // ---------------------------------------------------------
-        // ENERGY
+        // BIO-ENERGY
         // ---------------------------------------------------------
 
         public float bioEnergy = 100f;
@@ -279,7 +279,7 @@ public class ViridianBlocks {
 
 
             // =====================================================
-            // NO ENERGY
+            // STARVATION
             // =====================================================
 
             if (bioEnergy <= 0f) {
@@ -343,13 +343,13 @@ public class ViridianBlocks {
 
 
     // =============================================================
-    // VESSEL
+    // VESSEL BUILD
     // =============================================================
 
     public static class VesselBuild extends Building {
 
         // ---------------------------------------------------------
-        // ENERGY
+        // BIO-ENERGY
         // ---------------------------------------------------------
 
         public float bioEnergy = 3f;
@@ -456,7 +456,7 @@ public class ViridianBlocks {
 
 
             // =====================================================
-            // NO ENERGY
+            // STARVATION
             // =====================================================
 
             if (bioEnergy <= 0f) {
@@ -518,41 +518,52 @@ public class ViridianBlocks {
 
 
             // =====================================================
-            // SEARCH 4 DIRECTIONS
+            // FIND ADJACENT BUILDINGS
             // =====================================================
 
             Building north =
-                getAdjacentBuilding(this, 0, 1);
+                getAdjacentBuilding(
+                    this,
+                    0,
+                    1
+                );
 
             Building south =
-                getAdjacentBuilding(this, 0, -1);
+                getAdjacentBuilding(
+                    this,
+                    0,
+                    -1
+                );
 
             Building east =
-                getAdjacentBuilding(this, 1, 0);
+                getAdjacentBuilding(
+                    this,
+                    1,
+                    0
+                );
 
             Building west =
-                getAdjacentBuilding(this, -1, 0);
+                getAdjacentBuilding(
+                    this,
+                    -1,
+                    0
+                );
 
 
             // =====================================================
             // HEART → VESSEL
+            //
+            // IMPORTANT:
+            // There is NO return here.
+            //
+            // A Vessel must be able to receive from Heart
+            // and then continue processing Vessel → Vessel.
             // =====================================================
 
-            if (transferFromHeart(north)) {
-                return;
-            }
-
-            if (transferFromHeart(south)) {
-                return;
-            }
-
-            if (transferFromHeart(east)) {
-                return;
-            }
-
-            if (transferFromHeart(west)) {
-                return;
-            }
+            transferFromHeart(north);
+            transferFromHeart(south);
+            transferFromHeart(east);
+            transferFromHeart(west);
 
 
             // =====================================================
@@ -570,17 +581,21 @@ public class ViridianBlocks {
         // HEART → VESSEL
         // =========================================================
 
-        private boolean transferFromHeart(Building other) {
+        private boolean transferFromHeart(
+            Building other
+        ) {
 
             if (!(other instanceof HeartBuild)) {
                 return false;
             }
 
-            HeartBuild heartBuild =
+            HeartBuild source =
                 (HeartBuild)other;
 
 
-            // Amount transferred this frame.
+            // -----------------------------------------------------
+            // 1 Bio-Energy per second.
+            // -----------------------------------------------------
 
             float amount =
                 transferRate *
@@ -588,7 +603,9 @@ public class ViridianBlocks {
                 60f;
 
 
+            // -----------------------------------------------------
             // Don't exceed Vessel capacity.
+            // -----------------------------------------------------
 
             float freeSpace =
                 maxBioEnergy -
@@ -599,10 +616,12 @@ public class ViridianBlocks {
             }
 
 
+            // -----------------------------------------------------
             // Don't take more than Heart has.
+            // -----------------------------------------------------
 
-            if (amount > heartBuild.bioEnergy) {
-                amount = heartBuild.bioEnergy;
+            if (amount > source.bioEnergy) {
+                amount = source.bioEnergy;
             }
 
 
@@ -611,7 +630,7 @@ public class ViridianBlocks {
             }
 
 
-            heartBuild.removeBioEnergy(
+            source.removeBioEnergy(
                 amount
             );
 
@@ -627,7 +646,9 @@ public class ViridianBlocks {
         // VESSEL → VESSEL
         // =========================================================
 
-        private void transferFromVessel(Building other) {
+        private void transferFromVessel(
+            Building other
+        ) {
 
             if (!(other instanceof VesselBuild)) {
                 return;
@@ -638,7 +659,11 @@ public class ViridianBlocks {
 
 
             // -----------------------------------------------------
-            // Prevent A <-> B from transferring both directions.
+            // Prevent two adjacent Vessels from endlessly
+            // transferring energy back and forth.
+            //
+            // Only the Vessel with the HIGHER id is allowed
+            // to perform the transfer.
             // -----------------------------------------------------
 
             if (id <= target.id) {
@@ -647,7 +672,7 @@ public class ViridianBlocks {
 
 
             // -----------------------------------------------------
-            // Only the Vessel with more energy gives energy.
+            // Only transfer from a Vessel that has more energy.
             // -----------------------------------------------------
 
             if (bioEnergy <= target.bioEnergy) {
@@ -655,13 +680,19 @@ public class ViridianBlocks {
             }
 
 
+            // -----------------------------------------------------
+            // Transfer rate.
+            // -----------------------------------------------------
+
             float amount =
                 transferRate *
                 Time.delta /
                 60f;
 
 
-            // Target free capacity.
+            // -----------------------------------------------------
+            // Target capacity.
+            // -----------------------------------------------------
 
             float freeSpace =
                 maxBioEnergy -
@@ -672,7 +703,9 @@ public class ViridianBlocks {
             }
 
 
-            // This Vessel's available energy.
+            // -----------------------------------------------------
+            // Source available energy.
+            // -----------------------------------------------------
 
             if (amount > bioEnergy) {
                 amount = bioEnergy;
@@ -699,7 +732,8 @@ public class ViridianBlocks {
     // ENERGY SOURCE
     // =============================================================
 
-    public static class EnergySourceBuild extends Building {
+    public static class EnergySourceBuild
+        extends Building {
 
         @Override
         public void updateTile() {
@@ -708,13 +742,13 @@ public class ViridianBlocks {
 
                 for (int dy = -1; dy <= 1; dy++) {
 
+                    // Only 4 directions.
                     if (
                         Math.abs(dx) +
                         Math.abs(dy) != 1
                     ) {
                         continue;
                     }
-
 
                     Building other =
                         getAdjacentBuilding(
@@ -724,7 +758,13 @@ public class ViridianBlocks {
                         );
 
 
-                    if (other instanceof HeartBuild) {
+                    // -------------------------------------------------
+                    // SOURCE → HEART
+                    // -------------------------------------------------
+
+                    if (
+                        other instanceof HeartBuild
+                    ) {
 
                         HeartBuild target =
                             (HeartBuild)other;
@@ -737,7 +777,13 @@ public class ViridianBlocks {
                     }
 
 
-                    if (other instanceof VesselBuild) {
+                    // -------------------------------------------------
+                    // SOURCE → VESSEL
+                    // -------------------------------------------------
+
+                    if (
+                        other instanceof VesselBuild
+                    ) {
 
                         VesselBuild target =
                             (VesselBuild)other;
@@ -758,7 +804,8 @@ public class ViridianBlocks {
     // ENERGY DRAIN
     // =============================================================
 
-    public static class EnergyDrainBuild extends Building {
+    public static class EnergyDrainBuild
+        extends Building {
 
         @Override
         public void updateTile() {
@@ -767,13 +814,13 @@ public class ViridianBlocks {
 
                 for (int dy = -1; dy <= 1; dy++) {
 
+                    // Only 4 directions.
                     if (
                         Math.abs(dx) +
                         Math.abs(dy) != 1
                     ) {
                         continue;
                     }
-
 
                     Building other =
                         getAdjacentBuilding(
@@ -783,7 +830,13 @@ public class ViridianBlocks {
                         );
 
 
-                    if (other instanceof HeartBuild) {
+                    // -------------------------------------------------
+                    // DRAIN ← HEART
+                    // -------------------------------------------------
+
+                    if (
+                        other instanceof HeartBuild
+                    ) {
 
                         HeartBuild target =
                             (HeartBuild)other;
@@ -796,7 +849,13 @@ public class ViridianBlocks {
                     }
 
 
-                    if (other instanceof VesselBuild) {
+                    // -------------------------------------------------
+                    // DRAIN ← VESSEL
+                    // -------------------------------------------------
+
+                    if (
+                        other instanceof VesselBuild
+                    ) {
 
                         VesselBuild target =
                             (VesselBuild)other;
