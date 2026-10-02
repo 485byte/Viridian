@@ -40,7 +40,7 @@ public class ViridianBlocks {
 
             {
                 update = true;
-                buildType = HeartBuild::new;
+                buildType = () -> new HeartBuild();
             }
 
             @Override
@@ -100,7 +100,7 @@ public class ViridianBlocks {
 
             {
                 update = true;
-                buildType = EnergySourceBuild::new;
+                buildType = () -> new EnergySourceBuild();
             }
         };
 
@@ -127,7 +127,7 @@ public class ViridianBlocks {
 
             {
                 update = true;
-                buildType = EnergyDrainBuild::new;
+                buildType = () -> new EnergyDrainBuild();
             }
         };
 
@@ -154,7 +154,7 @@ public class ViridianBlocks {
 
             {
                 update = true;
-                buildType = VesselBuild::new;
+                buildType = () -> new VesselBuild();
             }
         };
 
@@ -162,11 +162,11 @@ public class ViridianBlocks {
         vessel.health = 750;
         vessel.destructible = true;
 
-        // Vessel có thể cháy.
+        // Có thể cháy.
         vessel.flammability = 1f;
 
-        // Không đặt explosiveness.
-        // Vessel sẽ không có cơ chế nổ riêng.
+        // Không có explosiveness,
+        // nên Vessel không có cơ chế nổ.
 
         vessel.update = true;
 
@@ -203,10 +203,6 @@ public class ViridianBlocks {
         private float recoveryTimer = 0f;
 
 
-        // -----------------------------------------------------
-        // SETTINGS
-        // -----------------------------------------------------
-
         public static final float energyConsumption = 4f;
 
         public static final float recoveryDelay = 10f;
@@ -218,9 +214,9 @@ public class ViridianBlocks {
         public static final float starvationDamage = 0.05f;
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // ADD ENERGY
-        // -----------------------------------------------------
+        // =====================================================
 
         public void addBioEnergy(float amount) {
 
@@ -232,9 +228,9 @@ public class ViridianBlocks {
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // REMOVE ENERGY
-        // -----------------------------------------------------
+        // =====================================================
 
         public void removeBioEnergy(float amount) {
 
@@ -246,9 +242,9 @@ public class ViridianBlocks {
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // DAMAGE
-        // -----------------------------------------------------
+        // =====================================================
 
         @Override
         public void damage(float amount) {
@@ -261,12 +257,16 @@ public class ViridianBlocks {
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // UPDATE
-        // -----------------------------------------------------
+        // =====================================================
 
         @Override
         public void updateTile() {
+
+            // -------------------------------------------------
+            // ENERGY CONSUMPTION
+            // -------------------------------------------------
 
             energyTimer += Time.delta;
 
@@ -288,9 +288,9 @@ public class ViridianBlocks {
             }
 
 
-            // =============================================
+            // -------------------------------------------------
             // NO ENERGY
-            // =============================================
+            // -------------------------------------------------
 
             if (bioEnergy <= 0f) {
 
@@ -311,9 +311,9 @@ public class ViridianBlocks {
             }
 
 
-            // =============================================
+            // -------------------------------------------------
             // RECOVERY
-            // =============================================
+            // -------------------------------------------------
 
             if (health < maxHealth) {
 
@@ -431,19 +431,19 @@ public class ViridianBlocks {
         // SETTINGS
         // -----------------------------------------------------
 
-        // 1 Bio-Energy / second
+        // Tốn 1 Bio-Energy mỗi giây để duy trì.
         public static final float energyConsumption = 1f;
 
-        // 1 Bio-Energy for one recovery
+        // Tốn 1 Bio-Energy mỗi lần hồi máu.
         public static final float recoveryCost = 1f;
 
-        // Wait 10 seconds without damage
+        // 10 giây không bị damage thì có thể hồi.
         public static final float recoveryDelay = 10f;
 
-        // Recover 4% max HP
+        // Hồi 4% max HP.
         public static final float recoveryPercent = 0.04f;
 
-        // Lose 5% max HP / second without energy
+        // Hết năng lượng thì mất 5% HP mỗi giây.
         public static final float starvationDamage = 0.05f;
 
 
@@ -456,9 +456,9 @@ public class ViridianBlocks {
         private float recoveryTimer = 0f;
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // ADD ENERGY
-        // -----------------------------------------------------
+        // =====================================================
 
         public void addBioEnergy(float amount) {
 
@@ -470,9 +470,9 @@ public class ViridianBlocks {
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // REMOVE ENERGY
-        // -----------------------------------------------------
+        // =====================================================
 
         public void removeBioEnergy(float amount) {
 
@@ -484,9 +484,9 @@ public class ViridianBlocks {
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // DAMAGE
-        // -----------------------------------------------------
+        // =====================================================
 
         @Override
         public void damage(float amount) {
@@ -499,16 +499,16 @@ public class ViridianBlocks {
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // UPDATE
-        // -----------------------------------------------------
+        // =====================================================
 
         @Override
         public void updateTile() {
 
-            // =============================================
+            // -------------------------------------------------
             // MAINTENANCE
-            // =============================================
+            // -------------------------------------------------
 
             energyTimer += Time.delta;
 
@@ -522,9 +522,9 @@ public class ViridianBlocks {
             }
 
 
-            // =============================================
+            // -------------------------------------------------
             // NO ENERGY
-            // =============================================
+            // -------------------------------------------------
 
             if (bioEnergy <= 0f) {
 
@@ -545,9 +545,9 @@ public class ViridianBlocks {
             }
 
 
-            // =============================================
+            // -------------------------------------------------
             // RECOVERY
-            // =============================================
+            // -------------------------------------------------
 
             if (health < maxHealth) {
 
@@ -578,9 +578,9 @@ public class ViridianBlocks {
             }
 
 
-            // =============================================
+            // -------------------------------------------------
             // HEART CONNECTION
-            // =============================================
+            // -------------------------------------------------
 
             for (Building other : proximity) {
 
@@ -590,11 +590,11 @@ public class ViridianBlocks {
                     HeartBuild heartBuild =
                         (HeartBuild)other;
 
-                    // Simple charging:
+                    // Heart -> Vessel
                     // 1 Bio-Energy / second
 
                     float transfer =
-                        1f * Time.delta / 60f;
+                        Time.delta / 60f;
 
                     if (heartBuild.bioEnergy >= transfer) {
 
