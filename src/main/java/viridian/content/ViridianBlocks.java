@@ -13,13 +13,17 @@ import static mindustry.type.ItemStack.with;
 
 public class ViridianBlocks {
 
+    // =========================================================
+    // BLOCKS
+    // =========================================================
+
     public static Block heart;
     public static Block energySource;
     public static Block energyDrain;
 
 
     // =========================================================
-    // LOAD ALL VIRIDIAN BLOCKS
+    // LOAD
     // =========================================================
 
     public static void load() {
@@ -35,168 +39,8 @@ public class ViridianBlocks {
 
             {
                 update = true;
-                buildType = () -> new HeartBuild();
+                buildType = HeartBuild::new;
             }
-
-            public class HeartBuild extends Building {
-
-                public float bioEnergy = 100f;
-                public float maxBioEnergy = 100f;
-
-                private float energyTimer = 0f;
-                private float recoveryTimer = 0f;
-
-
-                // -----------------------------
-                // HEART SETTINGS
-                // -----------------------------
-
-                public static final float energyConsumption = 4f;
-
-                public static final float recoveryDelay = 10f;
-
-                public static final float recoveryCost = 1f;
-
-                public static final float recoveryPercent = 0.04f;
-
-                public static final float starvationDamage = 0.05f;
-
-
-                // -----------------------------
-                // ADD ENERGY
-                // -----------------------------
-
-                public void addBioEnergy(float amount) {
-
-                    bioEnergy += amount;
-
-                    if (bioEnergy > maxBioEnergy) {
-                        bioEnergy = maxBioEnergy;
-                    }
-                }
-
-
-                // -----------------------------
-                // REMOVE ENERGY
-                // -----------------------------
-
-                public void removeBioEnergy(float amount) {
-
-                    bioEnergy -= amount;
-
-                    if (bioEnergy < 0f) {
-                        bioEnergy = 0f;
-                    }
-                }
-
-
-                // -----------------------------
-                // DAMAGE
-                // -----------------------------
-
-                @Override
-                public void damage(float amount) {
-
-                    super.damage(amount);
-
-                    if (amount > 0f) {
-                        recoveryTimer = 0f;
-                    }
-                }
-
-
-                // -----------------------------
-                // UPDATE
-                // -----------------------------
-
-                @Override
-                public void updateTile() {
-
-                    // =========================================
-                    // NORMAL ENERGY CONSUMPTION
-                    // =========================================
-
-                    energyTimer += Time.delta;
-
-                    if (energyTimer >= 60f) {
-
-                        energyTimer -= 60f;
-
-                        removeBioEnergy(energyConsumption);
-
-                        Log.info(
-                            "=== VIRIDIAN HEART ENERGY: "
-                            + bioEnergy
-                            + " / "
-                            + maxBioEnergy
-                            + " ==="
-                        );
-                    }
-
-
-                    // =========================================
-                    // NO ENERGY = LOSE HP
-                    // =========================================
-
-                    if (bioEnergy <= 0f) {
-
-                        health -= maxHealth
-                            * starvationDamage
-                            * Time.delta
-                            / 60f;
-
-                        recoveryTimer = 0f;
-
-                        if (health <= 0f) {
-
-                            kill();
-                            return;
-                        }
-
-                        return;
-                    }
-
-
-                    // =========================================
-                    // RECOVERY
-                    // =========================================
-
-                    if (health < maxHealth) {
-
-                        recoveryTimer += Time.delta;
-
-                        if (recoveryTimer >= recoveryDelay * 60f) {
-
-                            if (bioEnergy >= recoveryCost) {
-
-                                removeBioEnergy(recoveryCost);
-
-                                health += maxHealth
-                                    * recoveryPercent;
-
-                                if (health > maxHealth) {
-                                    health = maxHealth;
-                                }
-
-                                recoveryTimer = 0f;
-
-                                Log.info(
-                                    "=== VIRIDIAN HEART RECOVERY ==="
-                                );
-                            }
-                        }
-
-                    } else {
-
-                        recoveryTimer = 0f;
-                    }
-                }
-            }
-
-
-            // =============================================
-            // HEART BIO-ENERGY BAR
-            // =============================================
 
             @Override
             public void setBars() {
@@ -232,15 +76,9 @@ public class ViridianBlocks {
             }
         };
 
-
-        // Heart properties
-
         heart.size = 2;
-
         heart.health = 1000;
-
         heart.destructible = true;
-
         heart.update = true;
 
         heart.requirements(
@@ -262,50 +100,13 @@ public class ViridianBlocks {
 
             {
                 update = true;
-                buildType = () -> new EnergySourceBuild();
-            }
-
-
-            public class EnergySourceBuild extends Building {
-
-                // 500,000 Bio-Energy per second
-                public static final float energyOutput =
-                    500000f;
-
-
-                @Override
-                public void updateTile() {
-
-                    // Check adjacent buildings
-
-                    for (Building other : proximity) {
-
-                        if (other.block == heart) {
-
-                            if (other instanceof ViridianBlocks.HeartBuild) {
-
-                                ViridianBlocks.HeartBuild heartBuild =
-                                    (ViridianBlocks.HeartBuild)other;
-
-                                heartBuild.addBioEnergy(
-                                    energyOutput
-                                    * Time.delta
-                                    / 60f
-                                );
-                            }
-                        }
-                    }
-                }
+                buildType = EnergySourceBuild::new;
             }
         };
 
-
         energySource.size = 1;
-
         energySource.health = 250;
-
         energySource.destructible = true;
-
         energySource.update = true;
 
         energySource.requirements(
@@ -327,50 +128,13 @@ public class ViridianBlocks {
 
             {
                 update = true;
-                buildType = () -> new EnergyDrainBuild();
-            }
-
-
-            public class EnergyDrainBuild extends Building {
-
-                // 1,000,000 Bio-Energy per second
-                public static final float energyDrain =
-                    1000000f;
-
-
-                @Override
-                public void updateTile() {
-
-                    // Check adjacent buildings
-
-                    for (Building other : proximity) {
-
-                        if (other.block == heart) {
-
-                            if (other instanceof ViridianBlocks.HeartBuild) {
-
-                                ViridianBlocks.HeartBuild heartBuild =
-                                    (ViridianBlocks.HeartBuild)other;
-
-                                heartBuild.removeBioEnergy(
-                                    energyDrain
-                                    * Time.delta
-                                    / 60f
-                                );
-                            }
-                        }
-                    }
-                }
+                buildType = EnergyDrainBuild::new;
             }
         };
 
-
         energyDrain.size = 1;
-
         energyDrain.health = 250;
-
         energyDrain.destructible = true;
-
         energyDrain.update = true;
 
         energyDrain.requirements(
@@ -395,14 +159,240 @@ public class ViridianBlocks {
 
 
     // =========================================================
-    // HEART BUILD TYPE
-    // =========================================================
-    //
-    // This class reference allows Source/Drain to recognize
-    // the Heart's Building instance.
-    //
+    // HEART BUILD
     // =========================================================
 
     public static class HeartBuild extends Building {
+
+        // -----------------------------------------------------
+        // ENERGY
+        // -----------------------------------------------------
+
+        public float bioEnergy = 100f;
+
+        public float maxBioEnergy = 100f;
+
+
+        // -----------------------------------------------------
+        // TIMERS
+        // -----------------------------------------------------
+
+        private float energyTimer = 0f;
+
+        private float recoveryTimer = 0f;
+
+
+        // -----------------------------------------------------
+        // SETTINGS
+        // -----------------------------------------------------
+
+        public static final float energyConsumption = 4f;
+
+        public static final float recoveryDelay = 10f;
+
+        public static final float recoveryCost = 1f;
+
+        public static final float recoveryPercent = 0.04f;
+
+        public static final float starvationDamage = 0.05f;
+
+
+        // -----------------------------------------------------
+        // ADD ENERGY
+        // -----------------------------------------------------
+
+        public void addBioEnergy(float amount) {
+
+            bioEnergy += amount;
+
+            if (bioEnergy > maxBioEnergy) {
+                bioEnergy = maxBioEnergy;
+            }
+        }
+
+
+        // -----------------------------------------------------
+        // REMOVE ENERGY
+        // -----------------------------------------------------
+
+        public void removeBioEnergy(float amount) {
+
+            bioEnergy -= amount;
+
+            if (bioEnergy < 0f) {
+                bioEnergy = 0f;
+            }
+        }
+
+
+        // -----------------------------------------------------
+        // DAMAGE
+        // -----------------------------------------------------
+
+        @Override
+        public void damage(float amount) {
+
+            super.damage(amount);
+
+            if (amount > 0f) {
+                recoveryTimer = 0f;
+            }
+        }
+
+
+        // -----------------------------------------------------
+        // UPDATE
+        // -----------------------------------------------------
+
+        @Override
+        public void updateTile() {
+
+            // =============================================
+            // NORMAL ENERGY CONSUMPTION
+            // =============================================
+
+            energyTimer += Time.delta;
+
+            if (energyTimer >= 60f) {
+
+                energyTimer -= 60f;
+
+                removeBioEnergy(
+                    energyConsumption
+                );
+
+                Log.info(
+                    "=== VIRIDIAN HEART ENERGY: "
+                    + bioEnergy
+                    + " / "
+                    + maxBioEnergy
+                    + " ==="
+                );
+            }
+
+
+            // =============================================
+            // NO ENERGY
+            // =============================================
+
+            if (bioEnergy <= 0f) {
+
+                health -= maxHealth
+                    * starvationDamage
+                    * Time.delta
+                    / 60f;
+
+                recoveryTimer = 0f;
+
+                if (health <= 0f) {
+
+                    kill();
+                    return;
+                }
+
+                return;
+            }
+
+
+            // =============================================
+            // RECOVERY
+            // =============================================
+
+            if (health < maxHealth) {
+
+                recoveryTimer += Time.delta;
+
+                if (recoveryTimer >= recoveryDelay * 60f) {
+
+                    if (bioEnergy >= recoveryCost) {
+
+                        removeBioEnergy(
+                            recoveryCost
+                        );
+
+                        health += maxHealth
+                            * recoveryPercent;
+
+                        if (health > maxHealth) {
+                            health = maxHealth;
+                        }
+
+                        recoveryTimer = 0f;
+
+                        Log.info(
+                            "=== VIRIDIAN HEART RECOVERY ==="
+                        );
+                    }
+                }
+
+            } else {
+
+                recoveryTimer = 0f;
+            }
+        }
+    }
+
+
+    // =========================================================
+    // ENERGY SOURCE BUILD
+    // =========================================================
+
+    public static class EnergySourceBuild extends Building {
+
+        // 500,000 Bio-Energy / second
+        public static final float energyOutput = 500000f;
+
+
+        @Override
+        public void updateTile() {
+
+            for (Building other : proximity) {
+
+                if (other.block == heart
+                    && other instanceof HeartBuild) {
+
+                    HeartBuild heartBuild =
+                        (HeartBuild)other;
+
+                    heartBuild.addBioEnergy(
+                        energyOutput
+                        * Time.delta
+                        / 60f
+                    );
+                }
+            }
+        }
+    }
+
+
+    // =========================================================
+    // ENERGY DRAIN BUILD
+    // =========================================================
+
+    public static class EnergyDrainBuild extends Building {
+
+        // 1,000,000 Bio-Energy / second
+        public static final float energyDrain = 1000000f;
+
+
+        @Override
+        public void updateTile() {
+
+            for (Building other : proximity) {
+
+                if (other.block == heart
+                    && other instanceof HeartBuild) {
+
+                    HeartBuild heartBuild =
+                        (HeartBuild)other;
+
+                    heartBuild.removeBioEnergy(
+                        energyDrain
+                        * Time.delta
+                        / 60f
+                    );
+                }
+            }
+        }
     }
 }
