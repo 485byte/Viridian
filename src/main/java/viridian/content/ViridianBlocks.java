@@ -1,7 +1,6 @@
 package viridian.content;
 
 import arc.util.Log;
-import arc.util.Time;
 import mindustry.content.Items;
 import mindustry.gen.Building;
 import mindustry.graphics.Pal;
@@ -34,31 +33,29 @@ public class ViridianBlocks {
                 public float bioEnergy = 100f;
                 public float maxBioEnergy = 100f;
 
+                // =========================
+                // TIMERS
+                // =========================
+
+                private float energyTimer = 0f;
+                private float recoveryTimer = 0f;
 
                 // =========================
-                // RECOVERY
+                // SETTINGS
                 // =========================
 
-                public float recoveryTimer = 0f;
+                public static final float energyConsumption = 4f;
 
                 public static final float recoveryDelay = 10f;
                 public static final float recoveryCost = 1f;
                 public static final float recoveryPercent = 0.04f;
 
-
-                // =========================
-                // ENERGY
-                // =========================
-
-                public static final float energyConsumption = 4f;
-
-
-                // =========================
-                // STARVATION
-                // =========================
-
                 public static final float starvationDamage = 0.05f;
 
+
+                // =========================
+                // DAMAGE DETECTION
+                // =========================
 
                 @Override
                 public void damage(float amount) {
@@ -71,77 +68,92 @@ public class ViridianBlocks {
                 }
 
 
+                // =========================
+                // UPDATE
+                // =========================
+
                 @Override
                 public void updateTile() {
 
-                    // =========================
-                    // 1. BASIC ENERGY CONSUMPTION
-                    // =========================
+                    // =================================
+                    // 1. ENERGY TIMER
+                    // =================================
 
-                    bioEnergy -= energyConsumption * Time.delta;
+                    energyTimer += arc.util.Time.delta;
 
+                    if (energyTimer >= 60f) {
 
-                    if (bioEnergy < 0f) {
-                        bioEnergy = 0f;
+                        energyTimer -= 60f;
+
+                        // 4 BIO-ENERGY / SECOND
+                        bioEnergy -= energyConsumption;
+
+                        if (bioEnergy < 0f) {
+                            bioEnergy = 0f;
+                        }
+
+                        Log.info(
+                            "=== VIRIDIAN HEART ENERGY: "
+                            + bioEnergy
+                            + " ==="
+                        );
                     }
 
 
-                    // =========================
+                    // =================================
                     // 2. NO ENERGY = LOSE HP
-                    // =========================
+                    // =================================
 
                     if (bioEnergy <= 0f) {
 
-                        health -= maxHealth
-                            * starvationDamage
-                            * Time.delta;
+                        health -= maxHealth * starvationDamage
+                            * arc.util.Time.delta / 60f;
+
+                        recoveryTimer = 0f;
 
                         if (health <= 0f) {
                             kill();
                             return;
                         }
 
-                        // Starvation damage does not count
-                        // as external damage.
-                        // Recovery must wait again after
-                        // energy becomes available.
-                        recoveryTimer = 0f;
+                        return;
+                    }
+
+
+                    // =================================
+                    // 3. RECOVERY TIMER
+                    // =================================
+
+                    if (health < maxHealth) {
+
+                        recoveryTimer += arc.util.Time.delta;
+
+                        if (recoveryTimer >= recoveryDelay * 60f) {
+
+                            if (bioEnergy >= recoveryCost) {
+
+                                // PAY 1 ENERGY
+                                bioEnergy -= recoveryCost;
+
+                                // HEAL 4% MAX HP
+                                health += maxHealth * recoveryPercent;
+
+                                if (health > maxHealth) {
+                                    health = maxHealth;
+                                }
+
+                                // RESET TIMER
+                                recoveryTimer = 0f;
+
+                                Log.info(
+                                    "=== VIRIDIAN HEART RECOVERY ==="
+                                );
+                            }
+                        }
 
                     } else {
 
-                        // =========================
-                        // 3. DAMAGED HEART
-                        // =========================
-
-                        if (health < maxHealth) {
-
-                            recoveryTimer += Time.delta;
-
-
-                            // =========================
-                            // 4. RECOVERY AFTER 10 SECONDS
-                            // =========================
-
-                            if (recoveryTimer >= recoveryDelay) {
-
-                                if (bioEnergy >= recoveryCost) {
-
-                                    bioEnergy -= recoveryCost;
-
-                                    health += maxHealth
-                                        * recoveryPercent
-                                        * Time.delta;
-
-                                    if (health > maxHealth) {
-                                        health = maxHealth;
-                                    }
-                                }
-                            }
-
-                        } else {
-
-                            recoveryTimer = 0f;
-                        }
+                        recoveryTimer = 0f;
                     }
                 }
             }
@@ -169,7 +181,8 @@ public class ViridianBlocks {
                             );
                         }
 
-                        HeartBuild heartBuild = (HeartBuild)entity;
+                        HeartBuild heartBuild =
+                            (HeartBuild)entity;
 
                         return new Bar(
                             "Bio-Energy",
