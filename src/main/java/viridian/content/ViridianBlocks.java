@@ -1,12 +1,13 @@
 package viridian.content;
 
-import arc.Core;
 import arc.graphics.Color;
 import arc.util.Log;
 import arc.util.Time;
-import mindustry.Vars;
+
 import mindustry.content.Items;
 import mindustry.gen.Building;
+import mindustry.graphics.Pal;
+import mindustry.ui.Bar;
 import mindustry.type.Category;
 import mindustry.world.Block;
 
@@ -18,6 +19,7 @@ public class ViridianBlocks {
     public static Block vessel;
     public static Block energySource;
     public static Block energyDrain;
+
 
     public static void load() {
 
@@ -36,7 +38,25 @@ public class ViridianBlocks {
         heart.size = 2;
         heart.health = 1000;
         heart.destructible = true;
-        heart.requirements(Category.effect, with(Items.copper, 10));
+
+        heart.requirements(
+            Category.effect,
+            with(Items.copper, 10)
+        );
+
+
+        // =========================================================
+        // HEART BIO-ENERGY BAR
+        // =========================================================
+
+        heart.addBar(
+            "bio-energy",
+            (HeartBuild entity) -> new Bar(
+                "Bio-Energy",
+                Pal.powerBar,
+                () -> entity.bioEnergy / HeartBuild.maxBioEnergy
+            )
+        );
 
 
         // =========================================================
@@ -56,7 +76,24 @@ public class ViridianBlocks {
         vessel.destructible = true;
         vessel.update = true;
 
-        vessel.requirements(Category.effect, with(Items.copper, 5));
+        vessel.requirements(
+            Category.effect,
+            with(Items.copper, 5)
+        );
+
+
+        // =========================================================
+        // VESSEL BIO-ENERGY BAR
+        // =========================================================
+
+        vessel.addBar(
+            "bio-energy",
+            (VesselBuild entity) -> new Bar(
+                "Bio-Energy",
+                Pal.powerBar,
+                () -> entity.bioEnergy / VesselBuild.maxBioEnergy
+            )
+        );
 
 
         // =========================================================
@@ -113,11 +150,20 @@ public class ViridianBlocks {
 
     public static class HeartBuild extends Building {
 
+        // ---------------------------------------------------------
+        // BIO-ENERGY
+        // ---------------------------------------------------------
+
         public float bioEnergy = 100f;
 
         public static final float maxBioEnergy = 100f;
 
         public static final float energyConsumption = 4f;
+
+
+        // ---------------------------------------------------------
+        // RECOVERY
+        // ---------------------------------------------------------
 
         public static final float recoveryCost = 1f;
 
@@ -125,7 +171,13 @@ public class ViridianBlocks {
 
         public static final float recoveryPercent = 0.04f;
 
+
+        // ---------------------------------------------------------
+        // STARVATION
+        // ---------------------------------------------------------
+
         public static final float starvationDamage = 0.05f;
+
 
         private float energyTimer = 0f;
 
@@ -133,7 +185,7 @@ public class ViridianBlocks {
 
 
         // ---------------------------------------------------------
-        // ADD ENERGY
+        // ADD BIO-ENERGY
         // ---------------------------------------------------------
 
         public void addBioEnergy(float amount) {
@@ -147,7 +199,7 @@ public class ViridianBlocks {
 
 
         // ---------------------------------------------------------
-        // REMOVE ENERGY
+        // REMOVE BIO-ENERGY
         // ---------------------------------------------------------
 
         public void removeBioEnergy(float amount) {
@@ -192,16 +244,19 @@ public class ViridianBlocks {
 
                 energyTimer -= 60f;
 
-                removeBioEnergy(energyConsumption);
+                removeBioEnergy(
+                    energyConsumption
+                );
 
                 Log.info(
-                    "Viridian Heart energy: " + bioEnergy
+                    "Viridian Heart energy: "
+                    + bioEnergy
                 );
             }
 
 
             // =====================================================
-            // STARVATION
+            // NO ENERGY = LOSE HP
             // =====================================================
 
             if (bioEnergy <= 0f) {
@@ -209,7 +264,8 @@ public class ViridianBlocks {
                 health -=
                     maxHealth *
                     starvationDamage *
-                    Time.delta / 60f;
+                    Time.delta /
+                    60f;
 
                 recoveryTimer = 0f;
 
@@ -232,11 +288,16 @@ public class ViridianBlocks {
 
                 recoveryTimer += Time.delta;
 
-                if (recoveryTimer >= recoveryDelay * 60f) {
+                if (
+                    recoveryTimer >=
+                    recoveryDelay * 60f
+                ) {
 
                     if (bioEnergy >= recoveryCost) {
 
-                        removeBioEnergy(recoveryCost);
+                        removeBioEnergy(
+                            recoveryCost
+                        );
 
                         health +=
                             maxHealth *
@@ -270,7 +331,7 @@ public class ViridianBlocks {
     public static class VesselBuild extends Building {
 
         // ---------------------------------------------------------
-        // ENERGY
+        // BIO-ENERGY
         // ---------------------------------------------------------
 
         public float bioEnergy = 3f;
@@ -279,13 +340,30 @@ public class ViridianBlocks {
 
         public static final float energyConsumption = 1f;
 
+
+        // ---------------------------------------------------------
+        // RECOVERY
+        // ---------------------------------------------------------
+
         public static final float recoveryCost = 1f;
 
         public static final float recoveryDelay = 10f;
 
         public static final float recoveryPercent = 0.04f;
 
+
+        // ---------------------------------------------------------
+        // STARVATION
+        // ---------------------------------------------------------
+
         public static final float starvationDamage = 0.05f;
+
+
+        // ---------------------------------------------------------
+        // TRANSFER
+        // ---------------------------------------------------------
+
+        public static final float transferRate = 1f;
 
 
         private float energyTimer = 0f;
@@ -294,7 +372,7 @@ public class ViridianBlocks {
 
 
         // ---------------------------------------------------------
-        // ADD ENERGY
+        // ADD BIO-ENERGY
         // ---------------------------------------------------------
 
         public void addBioEnergy(float amount) {
@@ -308,7 +386,7 @@ public class ViridianBlocks {
 
 
         // ---------------------------------------------------------
-        // REMOVE ENERGY
+        // REMOVE BIO-ENERGY
         // ---------------------------------------------------------
 
         public void removeBioEnergy(float amount) {
@@ -353,12 +431,14 @@ public class ViridianBlocks {
 
                 energyTimer -= 60f;
 
-                removeBioEnergy(energyConsumption);
+                removeBioEnergy(
+                    energyConsumption
+                );
             }
 
 
             // =====================================================
-            // STARVATION
+            // NO ENERGY = LOSE HP
             // =====================================================
 
             if (bioEnergy <= 0f) {
@@ -366,7 +446,8 @@ public class ViridianBlocks {
                 health -=
                     maxHealth *
                     starvationDamage *
-                    Time.delta / 60f;
+                    Time.delta /
+                    60f;
 
                 recoveryTimer = 0f;
 
@@ -389,11 +470,16 @@ public class ViridianBlocks {
 
                 recoveryTimer += Time.delta;
 
-                if (recoveryTimer >= recoveryDelay * 60f) {
+                if (
+                    recoveryTimer >=
+                    recoveryDelay * 60f
+                ) {
 
                     if (bioEnergy >= recoveryCost) {
 
-                        removeBioEnergy(recoveryCost);
+                        removeBioEnergy(
+                            recoveryCost
+                        );
 
                         health +=
                             maxHealth *
@@ -430,7 +516,10 @@ public class ViridianBlocks {
                     float transfer =
                         Time.delta / 60f;
 
-                    if (heartBuild.bioEnergy >= transfer) {
+                    if (
+                        heartBuild.bioEnergy >=
+                        transfer
+                    ) {
 
                         heartBuild.removeBioEnergy(
                             transfer
@@ -444,12 +533,93 @@ public class ViridianBlocks {
                     break;
                 }
             }
+
+
+            // =====================================================
+            // VESSEL → VESSEL
+            // =====================================================
+
+            for (Building other : proximity) {
+
+                if (
+                    other.block != vessel ||
+                    !(other instanceof VesselBuild)
+                ) {
+                    continue;
+                }
+
+                VesselBuild target =
+                    (VesselBuild)other;
+
+
+                // -------------------------------------------------
+                // Only one side is allowed to transfer.
+                // This prevents A <-> B from transferring twice.
+                // -------------------------------------------------
+
+                if (id <= target.id) {
+                    continue;
+                }
+
+
+                // -------------------------------------------------
+                // Only transfer when this Vessel has more energy.
+                // -------------------------------------------------
+
+                if (
+                    bioEnergy <=
+                    target.bioEnergy
+                ) {
+                    continue;
+                }
+
+
+                // -------------------------------------------------
+                // Transfer 1 Bio-Energy/s.
+                // -------------------------------------------------
+
+                float amount =
+                    transferRate *
+                    Time.delta /
+                    60f;
+
+
+                // Don't give more than the target can hold.
+
+                float freeSpace =
+                    maxBioEnergy -
+                    target.bioEnergy;
+
+
+                if (amount > freeSpace) {
+                    amount = freeSpace;
+                }
+
+
+                // Don't give more than this Vessel has.
+
+                if (amount > bioEnergy) {
+                    amount = bioEnergy;
+                }
+
+
+                if (amount > 0f) {
+
+                    removeBioEnergy(
+                        amount
+                    );
+
+                    target.addBioEnergy(
+                        amount
+                    );
+                }
+            }
         }
     }
 
 
     // =============================================================
-    // ENERGY SOURCE BUILD
+    // ENERGY SOURCE
     // =============================================================
 
     public static class EnergySourceBuild extends Building {
@@ -458,6 +628,10 @@ public class ViridianBlocks {
         public void updateTile() {
 
             for (Building other : proximity) {
+
+                // -------------------------------------------------
+                // SOURCE → HEART
+                // -------------------------------------------------
 
                 if (
                     other.block == heart &&
@@ -477,6 +651,10 @@ public class ViridianBlocks {
                     );
                 }
 
+
+                // -------------------------------------------------
+                // SOURCE → VESSEL
+                // -------------------------------------------------
 
                 if (
                     other.block == vessel &&
@@ -501,7 +679,7 @@ public class ViridianBlocks {
 
 
     // =============================================================
-    // ENERGY DRAIN BUILD
+    // ENERGY DRAIN
     // =============================================================
 
     public static class EnergyDrainBuild extends Building {
@@ -510,6 +688,10 @@ public class ViridianBlocks {
         public void updateTile() {
 
             for (Building other : proximity) {
+
+                // -------------------------------------------------
+                // DRAIN ← HEART
+                // -------------------------------------------------
 
                 if (
                     other.block == heart &&
@@ -529,6 +711,10 @@ public class ViridianBlocks {
                     );
                 }
 
+
+                // -------------------------------------------------
+                // DRAIN ← VESSEL
+                // -------------------------------------------------
 
                 if (
                     other.block == vessel &&
