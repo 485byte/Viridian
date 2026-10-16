@@ -100,6 +100,60 @@ public class ViridianBlocks {
     }
 
     // =========================================================
+    // FIND ADJACENT BUILDINGS
+    // =========================================================
+
+    private static VesselBuild findAdjacentVessel(Building building) {
+
+        // Check buildings adjacent to the actual footprint first.
+        for(Building other : building.proximity) {
+            if(other instanceof VesselBuild) {
+                return (VesselBuild)other;
+            }
+        }
+
+        // Also support diagonal connections.
+        if(Vars.world != null) {
+            for(Point2 point : Geometry.d8) {
+                Building other = Vars.world.build(
+                    building.tileX() + point.x,
+                    building.tileY() + point.y
+                );
+
+                if(other instanceof VesselBuild) {
+                    return (VesselBuild)other;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static HeartBuild findAdjacentHeart(Building building) {
+
+        for(Building other : building.proximity) {
+            if(other instanceof HeartBuild) {
+                return (HeartBuild)other;
+            }
+        }
+
+        if(Vars.world != null) {
+            for(Point2 point : Geometry.d8) {
+                Building other = Vars.world.build(
+                    building.tileX() + point.x,
+                    building.tileY() + point.y
+                );
+
+                if(other instanceof HeartBuild) {
+                    return (HeartBuild)other;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    // =========================================================
     // HEART BUILD
     // =========================================================
 
@@ -168,7 +222,6 @@ public class ViridianBlocks {
             }
 
             if(health < maxHealth) {
-
                 recoveryTimer += Time.delta;
 
                 if(recoveryTimer >= recoveryDelay * 60f
@@ -178,7 +231,6 @@ public class ViridianBlocks {
                     heal(maxHealth * recoveryPercent);
                     recoveryTimer = 0f;
                 }
-
             } else {
                 recoveryTimer = 0f;
             }
@@ -266,7 +318,6 @@ public class ViridianBlocks {
             }
 
             if(health < maxHealth) {
-
                 recoveryTimer += Time.delta;
 
                 if(recoveryTimer >= recoveryDelay * 60f
@@ -276,7 +327,6 @@ public class ViridianBlocks {
                     heal(maxHealth * recoveryPercent);
                     recoveryTimer = 0f;
                 }
-
             } else {
                 recoveryTimer = 0f;
             }
@@ -296,43 +346,33 @@ public class ViridianBlocks {
         public void updateTile() {
 
             float amount = production * Time.delta / 60f;
-
             if(amount <= 0f) return;
 
-            // Prefer a connected Vessel network.
-            for(Point2 point : Geometry.d8) {
+            VesselBuild target = findAdjacentVessel(this);
 
-                Building other = Vars.world.build(
-                    tileX() + point.x,
-                    tileY() + point.y
-                );
+            if(target != null) {
 
-                if(other instanceof VesselBuild) {
+                // Fill the Vessel directly beside the Source first.
+                float free = target.maxBioEnergy - target.bioEnergy;
+                float accepted = Math.min(Math.max(0f, free), amount);
 
-                    VesselBuild target = (VesselBuild)other;
+                target.addBioEnergy(accepted);
 
-                    if(target.bioGraph != null) {
-                        target.bioGraph.addEnergy(amount);
-                    } else {
-                        target.addBioEnergy(amount);
-                    }
+                // Distribute any remaining production into its network.
+                float remaining = amount - accepted;
 
-                    return;
+                if(remaining > 0f && target.bioGraph != null) {
+                    target.bioGraph.addEnergy(remaining);
                 }
+
+                return;
             }
 
-            // If no Vessel is adjacent, supply Heart directly.
-            for(Point2 point : Geometry.d8) {
+            // If no Vessel is adjacent, supply an adjacent Heart.
+            HeartBuild heart = findAdjacentHeart(this);
 
-                Building other = Vars.world.build(
-                    tileX() + point.x,
-                    tileY() + point.y
-                );
-
-                if(other instanceof HeartBuild) {
-                    ((HeartBuild)other).addBioEnergy(amount);
-                    return;
-                }
+            if(heart != null) {
+                heart.addBioEnergy(amount);
             }
         }
     }
@@ -350,43 +390,27 @@ public class ViridianBlocks {
         public void updateTile() {
 
             float amount = drain * Time.delta / 60f;
-
             if(amount <= 0f) return;
 
-            // Prefer draining the connected Vessel network.
-            for(Point2 point : Geometry.d8) {
+            VesselBuild target = findAdjacentVessel(this);
 
-                Building other = Vars.world.build(
-                    tileX() + point.x,
-                    tileY() + point.y
-                );
+            if(target != null) {
 
-                if(other instanceof VesselBuild) {
-
-                    VesselBuild target = (VesselBuild)other;
-
-                    if(target.bioGraph != null) {
-                        target.bioGraph.removeEnergy(amount);
-                    } else {
-                        target.removeBioEnergy(amount);
-                    }
-
-                    return;
+                // Drain the connected Vessel network.
+                if(target.bioGraph != null) {
+                    target.bioGraph.removeEnergy(amount);
+                } else {
+                    target.removeBioEnergy(amount);
                 }
+
+                return;
             }
 
-            // If no Vessel is adjacent, drain Heart directly.
-            for(Point2 point : Geometry.d8) {
+            // If no Vessel is adjacent, drain an adjacent Heart.
+            HeartBuild heart = findAdjacentHeart(this);
 
-                Building other = Vars.world.build(
-                    tileX() + point.x,
-                    tileY() + point.y
-                );
-
-                if(other instanceof HeartBuild) {
-                    ((HeartBuild)other).removeBioEnergy(amount);
-                    return;
-                }
+            if(heart != null) {
+                heart.removeBioEnergy(amount);
             }
         }
     }
