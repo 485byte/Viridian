@@ -1,8 +1,8 @@
+
 package viridian.content;
 
-import arc.math.geom.Point2;
 import arc.math.geom.Geometry;
-import arc.util.Log;
+import arc.math.geom.Point2;
 import arc.util.Time;
 
 import mindustry.Vars;
@@ -12,7 +12,6 @@ import mindustry.graphics.Pal;
 import mindustry.ui.Bar;
 import mindustry.type.Category;
 import mindustry.world.Block;
-import mindustry.world.Tile;
 
 import static mindustry.type.ItemStack.with;
 
@@ -25,10 +24,7 @@ public class ViridianBlocks {
 
     public static void load() {
 
-        // =========================
         // HEART
-        // =========================
-
         heart = new Block("viridian-heart") {{
             size = 2;
             health = 1000;
@@ -53,10 +49,7 @@ public class ViridianBlocks {
             );
         }};
 
-        // =========================
         // VESSEL
-        // =========================
-
         vessel = new Block("viridian-vessel") {{
             size = 1;
             health = 750;
@@ -81,10 +74,7 @@ public class ViridianBlocks {
             );
         }};
 
-        // =========================
         // ENERGY SOURCE
-        // =========================
-
         energySource = new Block("viridian-energy-source") {{
             size = 1;
             health = 250;
@@ -96,10 +86,7 @@ public class ViridianBlocks {
             buildType = EnergySourceBuild::new;
         }};
 
-        // =========================
         // ENERGY DRAIN
-        // =========================
-
         energyDrain = new Block("viridian-energy-drain") {{
             size = 1;
             health = 250;
@@ -110,23 +97,6 @@ public class ViridianBlocks {
 
             buildType = EnergyDrainBuild::new;
         }};
-    }
-
-
-    // =========================================================
-    // HELPER
-    // =========================================================
-
-    public static Building getAdjacentBuilding(Building building, int dx, int dy) {
-
-        Tile tile = Vars.world.tile(
-            building.tileX() + dx,
-            building.tileY() + dy
-        );
-
-        if(tile == null) return null;
-
-        return tile.build;
     }
 
 
@@ -152,90 +122,74 @@ public class ViridianBlocks {
 
 
         public void addBioEnergy(float amount) {
-
-            bioEnergy += amount;
-
-            if(bioEnergy > maxBioEnergy) {
-                bioEnergy = maxBioEnergy;
-            }
+            bioEnergy = Math.min(maxBioEnergy, bioEnergy + amount);
         }
 
 
         public void removeBioEnergy(float amount) {
-
-            bioEnergy -= amount;
-
-            if(bioEnergy < 0f) {
-                bioEnergy = 0f;
-            }
+            bioEnergy = Math.max(0f, bioEnergy - amount);
         }
 
 
         @Override
         public void damage(float amount) {
-
             super.damage(amount);
-
-            // Bị damage -> reset thời gian hồi phục
             recoveryTimer = 0f;
+        }
+
+
+        @Override
+        public void placed() {
+            super.placed();
+            BioEnergyGraph.rebuild();
+        }
+
+
+        @Override
+        public void onProximityUpdate() {
+            super.onProximityUpdate();
+            BioEnergyGraph.rebuild();
+        }
+
+
+        @Override
+        public void onRemoved() {
+            super.onRemoved();
+
+            // Rebuild after the old tile has been removed.
+            Time.run(1f, BioEnergyGraph::rebuild);
         }
 
 
         @Override
         public void updateTile() {
 
-            // =====================================
-            // ENERGY CONSUMPTION
-            // =====================================
-
             energyTimer += Time.delta;
 
             if(energyTimer >= 60f) {
-
                 removeBioEnergy(consumption);
-
                 energyTimer -= 60f;
             }
 
-
-            // =====================================
-            // STARVATION
-            // =====================================
-
             if(bioEnergy <= 0f) {
-
-                // 5% MAX HP mỗi giây
                 damage(maxHealth * starvationDamage * Time.delta / 60f);
-
-                // Không hồi phục khi hết năng lượng
                 recoveryTimer = 0f;
-
                 return;
             }
-
-
-            // =====================================
-            // RECOVERY
-            // =====================================
 
             if(health < maxHealth) {
 
                 recoveryTimer += Time.delta;
 
-                if(recoveryTimer >= recoveryDelay * 60f) {
+                if(recoveryTimer >= recoveryDelay * 60f
+                    && bioEnergy >= recoveryCost) {
 
-                    if(bioEnergy >= recoveryCost) {
-
-                        removeBioEnergy(recoveryCost);
-
-                        heal(maxHealth * recoveryPercent);
-
-                        recoveryTimer = 0f;
-                    }
+                    removeBioEnergy(recoveryCost);
+                    heal(maxHealth * recoveryPercent);
+                    recoveryTimer = 0f;
                 }
 
             } else {
-
                 recoveryTimer = 0f;
             }
         }
@@ -248,9 +202,9 @@ public class ViridianBlocks {
 
     public static class VesselBuild extends Building {
 
-        // Vessel bắt đầu rỗng để có thể test truyền năng lượng.
-        public float bioEnergy = 0f;
+        public static float transferRatePerSecond = 100000f;
 
+        public float bioEnergy = 0f;
         public float maxBioEnergy = 3f;
 
         public float consumption = 1f;
@@ -261,254 +215,86 @@ public class ViridianBlocks {
 
         public float starvationDamage = 0.05f;
 
-        // 100k Bio-Energy / second
-        public float transferRate = 100000f;
+        public BioEnergyGraph bioGraph;
 
         private float energyTimer = 0f;
         private float recoveryTimer = 0f;
 
 
         public void addBioEnergy(float amount) {
-
-            bioEnergy += amount;
-
-            if(bioEnergy > maxBioEnergy) {
-                bioEnergy = maxBioEnergy;
-            }
+            bioEnergy = Math.min(maxBioEnergy, bioEnergy + amount);
         }
 
 
         public void removeBioEnergy(float amount) {
-
-            bioEnergy -= amount;
-
-            if(bioEnergy < 0f) {
-                bioEnergy = 0f;
-            }
+            bioEnergy = Math.max(0f, bioEnergy - amount);
         }
 
 
         @Override
         public void damage(float amount) {
-
             super.damage(amount);
-
-            // Bị damage -> reset thời gian hồi phục
             recoveryTimer = 0f;
+        }
+
+
+        @Override
+        public void placed() {
+            super.placed();
+            BioEnergyGraph.register(this);
+        }
+
+
+        @Override
+        public void onProximityUpdate() {
+            super.onProximityUpdate();
+            BioEnergyGraph.register(this);
+        }
+
+
+        @Override
+        public void onRemoved() {
+            BioEnergyGraph.unregister(this);
+            super.onRemoved();
         }
 
 
         @Override
         public void updateTile() {
 
-            // =====================================
-            // ENERGY CONSUMPTION
-            // =====================================
+            // Update the shared graph only once per frame.
+            if(bioGraph != null) {
+                bioGraph.update();
+            }
 
             energyTimer += Time.delta;
 
             if(energyTimer >= 60f) {
-
                 removeBioEnergy(consumption);
-
                 energyTimer -= 60f;
             }
 
-
-            // =====================================
-            // STARVATION
-            // =====================================
-
             if(bioEnergy <= 0f) {
-
                 damage(maxHealth * starvationDamage * Time.delta / 60f);
-
                 recoveryTimer = 0f;
-
                 return;
             }
-
-
-            // =====================================
-            // RECOVERY
-            // =====================================
 
             if(health < maxHealth) {
 
                 recoveryTimer += Time.delta;
 
-                if(recoveryTimer >= recoveryDelay * 60f) {
+                if(recoveryTimer >= recoveryDelay * 60f
+                    && bioEnergy >= recoveryCost) {
 
-                    if(bioEnergy >= recoveryCost) {
-
-                        removeBioEnergy(recoveryCost);
-
-                        heal(maxHealth * recoveryPercent);
-
-                        recoveryTimer = 0f;
-                    }
+                    removeBioEnergy(recoveryCost);
+                    heal(maxHealth * recoveryPercent);
+                    recoveryTimer = 0f;
                 }
 
             } else {
-
                 recoveryTimer = 0f;
             }
-
-
-            // =====================================
-            // ENERGY TRANSFER
-            // =====================================
-
-            /*
-             * Geometry.d8 gồm 8 hướng xung quanh Vessel:
-             *
-             *      ↖  ↑  ↗
-             *      ←  V  →
-             *      ↙  ↓  ↘
-             *
-             * Vì vậy Vessel có thể truyền năng lượng
-             * theo cả 8 hướng.
-             */
-
-            for(Point2 point : Geometry.d8) {
-
-                Building other = getAdjacentBuilding(
-                    this,
-                    point.x,
-                    point.y
-                );
-
-                if(other == null) continue;
-
-
-                // -----------------------------
-                // HEART -> VESSEL
-                // -----------------------------
-
-                transferFromHeart(other);
-
-
-                // -----------------------------
-                // VESSEL -> VESSEL
-                // -----------------------------
-
-                transferFromVessel(other);
-            }
-        }
-
-
-        // =====================================================
-        // HEART -> THIS VESSEL
-        // =====================================================
-
-        private void transferFromHeart(Building other) {
-
-            if(!(other instanceof HeartBuild)) {
-                return;
-            }
-
-            HeartBuild heart = (HeartBuild)other;
-
-
-            // Vessel đã đầy
-            if(bioEnergy >= maxBioEnergy) {
-                return;
-            }
-
-
-            // Heart hết năng lượng
-            if(heart.bioEnergy <= 0f) {
-                return;
-            }
-
-
-            float freeSpace =
-                maxBioEnergy - bioEnergy;
-
-
-            float amount =
-                transferRate * Time.delta / 60f;
-
-
-            if(amount > freeSpace) {
-                amount = freeSpace;
-            }
-
-
-            if(amount > heart.bioEnergy) {
-                amount = heart.bioEnergy;
-            }
-
-
-            if(amount <= 0f) {
-                return;
-            }
-
-
-            heart.removeBioEnergy(amount);
-
-            addBioEnergy(amount);
-        }
-
-
-        // =====================================================
-        // VESSEL -> VESSEL
-        // =====================================================
-
-        private void transferFromVessel(Building other) {
-
-            if(!(other instanceof VesselBuild)) {
-                return;
-            }
-
-            VesselBuild source = (VesselBuild)other;
-
-
-            // Không truyền cho chính mình
-            if(source == this) {
-                return;
-            }
-
-
-            // Nếu source không có nhiều hơn mình,
-            // không cần truyền.
-            if(source.bioEnergy <= bioEnergy) {
-                return;
-            }
-
-
-            // Vessel này đã đầy
-            if(bioEnergy >= maxBioEnergy) {
-                return;
-            }
-
-
-            float need =
-                maxBioEnergy - bioEnergy;
-
-
-            float amount =
-                transferRate * Time.delta / 60f;
-
-
-            if(amount > need) {
-                amount = need;
-            }
-
-
-            if(amount > source.bioEnergy) {
-                amount = source.bioEnergy;
-            }
-
-
-            if(amount <= 0f) {
-                return;
-            }
-
-
-            source.removeBioEnergy(amount);
-
-            addBioEnergy(amount);
         }
     }
 
@@ -525,25 +311,31 @@ public class ViridianBlocks {
         @Override
         public void updateTile() {
 
+            float amount = production * Time.delta / 60f;
+
             for(Point2 point : Geometry.d8) {
 
-                Building other = getAdjacentBuilding(
-                    this,
-                    point.x,
-                    point.y
+                Building other = Vars.world.build(
+                    tileX() + point.x,
+                    tileY() + point.y
                 );
 
                 if(other instanceof HeartBuild) {
+                    ((HeartBuild)other).addBioEnergy(amount);
+                    return;
+                }
 
-                    ((HeartBuild)other).addBioEnergy(
-                        production * Time.delta / 60f
-                    );
+                if(other instanceof VesselBuild) {
 
-                } else if(other instanceof VesselBuild) {
+                    VesselBuild target = (VesselBuild)other;
 
-                    ((VesselBuild)other).addBioEnergy(
-                        production * Time.delta / 60f
-                    );
+                    if(target.bioGraph != null) {
+                        target.bioGraph.addEnergy(amount);
+                    } else {
+                        target.addBioEnergy(amount);
+                    }
+
+                    return;
                 }
             }
         }
@@ -562,25 +354,31 @@ public class ViridianBlocks {
         @Override
         public void updateTile() {
 
+            float amount = drain * Time.delta / 60f;
+
             for(Point2 point : Geometry.d8) {
 
-                Building other = getAdjacentBuilding(
-                    this,
-                    point.x,
-                    point.y
+                Building other = Vars.world.build(
+                    tileX() + point.x,
+                    tileY() + point.y
                 );
 
                 if(other instanceof HeartBuild) {
+                    ((HeartBuild)other).removeBioEnergy(amount);
+                    return;
+                }
 
-                    ((HeartBuild)other).removeBioEnergy(
-                        drain * Time.delta / 60f
-                    );
+                if(other instanceof VesselBuild) {
 
-                } else if(other instanceof VesselBuild) {
+                    VesselBuild target = (VesselBuild)other;
 
-                    ((VesselBuild)other).removeBioEnergy(
-                        drain * Time.delta / 60f
-                    );
+                    if(target.bioGraph != null) {
+                        target.bioGraph.removeEnergy(amount);
+                    } else {
+                        target.removeBioEnergy(amount);
+                    }
+
+                    return;
                 }
             }
         }
