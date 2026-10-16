@@ -1,4 +1,3 @@
-vessel.bioGraph
 package viridian.content;
 
 import arc.math.geom.Geometry;
