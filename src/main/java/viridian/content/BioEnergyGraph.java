@@ -1,4 +1,4 @@
-
+vessel.bioGraph
 package viridian.content;
 
 import arc.math.geom.Geometry;
@@ -20,9 +20,6 @@ public class BioEnergyGraph {
     private static final ArrayList<ViridianBlocks.VesselBuild> registered =
         new ArrayList<>();
 
-    private static final ArrayList<BioEnergyGraph> graphs =
-        new ArrayList<>();
-
     public final ArrayList<ViridianBlocks.VesselBuild> vessels =
         new ArrayList<>();
 
@@ -34,6 +31,10 @@ public class BioEnergyGraph {
         new HashMap<>();
 
     private float lastUpdateTime = Float.NaN;
+
+    // ---------------------------------------------------------
+    // REGISTER / UNREGISTER
+    // ---------------------------------------------------------
 
     public static void register(ViridianBlocks.VesselBuild vessel) {
         if(vessel == null) return;
@@ -52,11 +53,20 @@ public class BioEnergyGraph {
         rebuild();
     }
 
+    // ---------------------------------------------------------
+    // REBUILD NETWORK
+    // ---------------------------------------------------------
+
     public static void rebuild() {
 
-        graphs.clear();
+        if(Vars.world == null) {
+            for(ViridianBlocks.VesselBuild vessel : registered) {
+                if(vessel != null) vessel.bioGraph = null;
+            }
+            return;
+        }
 
-        // Loại bỏ Building không còn tồn tại.
+        // Remove invalid vessels and clear old graph references.
         for(int i = registered.size() - 1; i >= 0; i--) {
             ViridianBlocks.VesselBuild vessel = registered.get(i);
 
@@ -67,27 +77,22 @@ public class BioEnergyGraph {
             }
         }
 
-        if(Vars.world == null) return;
-
-        // Danh sách Vessel đang tồn tại.
         Set<ViridianBlocks.VesselBuild> known =
             new HashSet<>(registered);
 
-        // Vessel nào nằm cạnh Vessel nào.
         Map<ViridianBlocks.VesselBuild,
             ArrayList<ViridianBlocks.VesselBuild>> vesselLinks =
                 new HashMap<>();
 
-        // Vessel nào tiếp xúc trực tiếp với Heart nào.
         Map<ViridianBlocks.VesselBuild,
             ArrayList<ViridianBlocks.HeartBuild>> vesselHearts =
                 new HashMap<>();
 
-        // Các Vessel tiếp xúc với cùng một Heart.
         Map<ViridianBlocks.HeartBuild,
             ArrayList<ViridianBlocks.VesselBuild>> heartLinks =
                 new HashMap<>();
 
+        // Discover eight-direction connections.
         for(ViridianBlocks.VesselBuild vessel : registered) {
 
             ArrayList<ViridianBlocks.VesselBuild> neighbors =
@@ -108,7 +113,8 @@ public class BioEnergyGraph {
                     ViridianBlocks.VesselBuild next =
                         (ViridianBlocks.VesselBuild)other;
 
-                    if(next != vessel && known.contains(next)
+                    if(next != vessel
+                        && known.contains(next)
                         && !neighbors.contains(next)) {
                         neighbors.add(next);
                     }
@@ -118,7 +124,8 @@ public class BioEnergyGraph {
                     ViridianBlocks.HeartBuild heart =
                         (ViridianBlocks.HeartBuild)other;
 
-                    if(!nearbyHearts.contains(heart)) {
+                    if(heart.isAdded()
+                        && !nearbyHearts.contains(heart)) {
                         nearbyHearts.add(heart);
                     }
                 }
@@ -141,21 +148,20 @@ public class BioEnergyGraph {
             }
         }
 
-        // Tìm từng thành phần liên thông bằng BFS.
+        // Build connected components using BFS.
         Set<ViridianBlocks.VesselBuild> visited =
             new HashSet<>();
 
         for(ViridianBlocks.VesselBuild start : registered) {
 
-            if(visited.contains(start)) continue;
+            if(!visited.add(start)) continue;
 
             BioEnergyGraph graph = new BioEnergyGraph();
 
             ArrayDeque<ViridianBlocks.VesselBuild> queue =
                 new ArrayDeque<>();
 
-            queue.add(start);
-            visited.add(start);
+            queue.addLast(start);
 
             while(!queue.isEmpty()) {
 
@@ -181,8 +187,8 @@ public class BioEnergyGraph {
                             graph.hearts.add(heart);
                         }
 
-                        // Heart là một nút kết nối chung.
-                        // Các Vessel chạm cùng Heart thuộc cùng mạng.
+                        // Vessels touching the same Heart
+                        // belong to the same connected network.
                         ArrayList<ViridianBlocks.VesselBuild> linked =
                             heartLinks.get(heart);
 
@@ -207,10 +213,12 @@ public class BioEnergyGraph {
                     }
                 }
             }
-
-            graphs.add(graph);
         }
     }
+
+    // ---------------------------------------------------------
+    // GRAPH LOOKUP
+    // ---------------------------------------------------------
 
     public static BioEnergyGraph getGraph(Building building) {
 
@@ -218,10 +226,12 @@ public class BioEnergyGraph {
             return ((ViridianBlocks.VesselBuild)building).bioGraph;
         }
 
-        // Heart không nhất thiết phải thuộc một graph.
-        // Source/Drain đặt cạnh Heart có thể tác động trực tiếp.
         return null;
     }
+
+    // ---------------------------------------------------------
+    // ADD / REMOVE ENERGY
+    // ---------------------------------------------------------
 
     public void addEnergy(float amount) {
 
@@ -229,7 +239,6 @@ public class BioEnergyGraph {
 
         float remaining = amount;
 
-        // Phân phối vào các Vessel còn chỗ chứa.
         for(ViridianBlocks.VesselBuild vessel : vessels) {
 
             float free = vessel.maxBioEnergy - vessel.bioEnergy;
@@ -255,10 +264,7 @@ public class BioEnergyGraph {
 
             if(vessel.bioEnergy <= 0f) continue;
 
-            float removed = Math.min(
-                vessel.bioEnergy,
-                remaining
-            );
+            float removed = Math.min(vessel.bioEnergy, remaining);
 
             vessel.removeBioEnergy(removed);
             remaining -= removed;
@@ -267,9 +273,13 @@ public class BioEnergyGraph {
         }
     }
 
+    // ---------------------------------------------------------
+    // NETWORK UPDATE
+    // ---------------------------------------------------------
+
     public void update() {
 
-        // Một graph chỉ cập nhật một lần trong cùng frame.
+        // A graph must only update once per game frame.
         if(lastUpdateTime == Time.time) return;
 
         lastUpdateTime = Time.time;
@@ -280,71 +290,204 @@ public class BioEnergyGraph {
             ViridianBlocks.VesselBuild.transferRatePerSecond
             * Time.delta / 60f;
 
-        // BƯỚC 1: Heart chỉ cấp năng lượng cho Vessel
-        // mà nó tiếp xúc trực tiếp.
-        for(ViridianBlocks.VesselBuild vessel : vessels) {
+        if(transferAmount <= 0f) return;
 
-            ArrayList<ViridianBlocks.HeartBuild> nearby =
-                adjacentHearts.get(vessel);
+        // Hysteresis thresholds prevent Heart and Vessel
+        // from continuously transferring energy back and forth.
+        boolean returnedEnergy = false;
 
-            if(nearby == null) continue;
+        float reserve = ViridianBlocks.VesselBuild.heartReturnReserve;
 
-            for(ViridianBlocks.HeartBuild heart : nearby) {
+        Map<ViridianBlocks.VesselBuild, Float> returnedByVessel =
+            new HashMap<>();
 
-                if(!heart.isAdded()) continue;
+        // STEP 1: Return surplus energy to a low-energy Heart.
+        // Every Vessel retains at least the configured reserve.
+        for(ViridianBlocks.HeartBuild heart : hearts) {
 
-                float free =
-                    vessel.maxBioEnergy - vessel.bioEnergy;
+            if(heart == null || !heart.isAdded()) continue;
 
-                if(free <= 0f || heart.bioEnergy <= 0f) continue;
+            float returnThreshold = heart.maxBioEnergy * 0.25f;
+            float targetEnergy = heart.maxBioEnergy * 0.75f;
+
+            if(heart.bioEnergy >= returnThreshold) continue;
+
+            float needed = targetEnergy - heart.bioEnergy;
+
+            if(needed <= 0f) continue;
+
+            for(ViridianBlocks.VesselBuild vessel : vessels) {
+
+                if(needed <= 0f) break;
+
+                float alreadyReturned =
+                    returnedByVessel.getOrDefault(vessel, 0f);
+
+                float available =
+                    vessel.bioEnergy - reserve;
+
+                float rateLeft =
+                    transferAmount - alreadyReturned;
+
+                if(available <= 0f || rateLeft <= 0f) continue;
 
                 float amount = Math.min(
-                    transferAmount,
-                    Math.min(free, heart.bioEnergy)
+                    needed,
+                    Math.min(available, rateLeft)
                 );
 
-                heart.removeBioEnergy(amount);
-                vessel.addBioEnergy(amount);
+                vessel.removeBioEnergy(amount);
+                heart.addBioEnergy(amount);
+
+                returnedByVessel.put(
+                    vessel,
+                    alreadyReturned + amount
+                );
+
+                needed -= amount;
+                returnedEnergy = true;
             }
         }
 
-        // BƯỚC 2: Cân bằng năng lượng trong mạng.
-        // Mỗi Vessel có thể gửi/nhận tối đa transferAmount
-        // trong bước cân bằng của frame này.
+        // Do not send energy back to the Vessel network
+        // in the same frame in which energy returned to Heart.
+        if(!returnedEnergy) {
+
+            Map<ViridianBlocks.VesselBuild, Float> receivedByVessel =
+                new HashMap<>();
+
+            // STEP 2: Heart supplies directly adjacent Vessels
+            // when it has sufficient energy.
+            for(ViridianBlocks.VesselBuild vessel : vessels) {
+
+                ArrayList<ViridianBlocks.HeartBuild> nearby =
+                    adjacentHearts.get(vessel);
+
+                if(nearby == null) continue;
+
+                for(ViridianBlocks.HeartBuild heart : nearby) {
+
+                    if(heart == null || !heart.isAdded()) continue;
+
+                    float supplyThreshold =
+                        heart.maxBioEnergy * 0.75f;
+
+                    float available =
+                        heart.bioEnergy - supplyThreshold;
+
+                    if(available <= 0f) continue;
+
+                    float alreadyReceived =
+                        receivedByVessel.getOrDefault(vessel, 0f);
+
+                    float rateLeft =
+                        transferAmount - alreadyReceived;
+
+                    float free =
+                        vessel.maxBioEnergy - vessel.bioEnergy;
+
+                    if(free <= 0f || rateLeft <= 0f) continue;
+
+                    float amount = Math.min(
+                        available,
+                        Math.min(free, rateLeft)
+                    );
+
+                    heart.removeBioEnergy(amount);
+                    vessel.addBioEnergy(amount);
+
+                    receivedByVessel.put(
+                        vessel,
+                        alreadyReceived + amount
+                    );
+                }
+            }
+        }
+
+        // STEP 3: Balance energy across the entire network.
+        // Calculate all transfers first, then apply them together.
+        // This avoids creating or losing energy during balancing.
+        int count = vessels.size();
+
+        if(count <= 1) return;
+
         float total = 0f;
 
         for(ViridianBlocks.VesselBuild vessel : vessels) {
             total += vessel.bioEnergy;
         }
 
-        float average = total / vessels.size();
+        float average = total / count;
 
-        float[] removed = new float[vessels.size()];
-        float pool = 0f;
+        float[] outgoing = new float[count];
+        float[] incoming = new float[count];
 
-        for(int i = 0; i < vessels.size(); i++) {
+        float outgoingTotal = 0f;
+        float incomingTotal = 0f;
+
+        for(int i = 0; i < count; i++) {
 
             ViridianBlocks.VesselBuild vessel = vessels.get(i);
 
-            float excess = vessel.bioEnergy - average;
+            float energy = vessel.bioEnergy;
 
-            if(excess <= 0f) continue;
+            if(energy > average) {
 
-            float amount = Math.min(excess, transferAmount);
+                outgoing[i] = Math.min(
+                    energy - average,
+                    transferAmount
+                );
 
-            vessel.removeBioEnergy(amount);
+                outgoingTotal += outgoing[i];
 
-            removed[i] = amount;
-            pool += amount;
+            } else if(energy < average) {
+
+                float free =
+                    vessel.maxBioEnergy - energy;
+
+                incoming[i] = Math.min(
+                    average - energy,
+                    Math.min(transferAmount, free)
+                );
+
+                incomingTotal += incoming[i];
+            }
         }
 
-        for(ViridianBlocks.VesselBuild vessel : vessels) {
+        float transferable = Math.min(
+            outgoingTotal,
+            incomingTotal
+        );
 
-            float need = average - vessel.bioEnergy;
+        if(transferable <= 0f) return;
 
-            if(need <= 0f || pool <= 0f) continue;
+        float outgoingScale =
+            outgoingTotal > 0f
+            ? transferable / outgoingTotal
+            : 0f;
 
-            float amount = Math.min(
+        float incomingScale =
+            incomingTotal > 0f
+            ? transferable / incomingTotal
+            : 0f;
+
+        for(int i = 0; i < count; i++) {
+
+            ViridianBlocks.VesselBuild vessel = vessels.get(i);
+
+            float change =
+                incoming[i] * incomingScale
+                - outgoing[i] * outgoingScale;
+
+            if(change > 0f) {
+                vessel.addBioEnergy(change);
+            } else if(change < 0f) {
+                vessel.removeBioEnergy(-change);
+            }
+        }
+    }
+}
+n(
                 need,
                 Math.min(transferAmount, pool)
             );
