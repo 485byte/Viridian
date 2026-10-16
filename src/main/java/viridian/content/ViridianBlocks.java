@@ -246,7 +246,7 @@ public class ViridianBlocks {
         public static float transferRatePerSecond = 100000f;
 
         // Each Vessel retains at least 1 energy when returning energy.
-        public static float heartReturnReserve = 1f;
+        public static float heartReturnReserve = 2f;
 
         public float bioEnergy = 0f;
         public float maxBioEnergy = 3f;
