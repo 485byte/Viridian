@@ -1,3 +1,4 @@
+
 package viridian.content;
 
 import arc.math.geom.Geometry;
@@ -31,9 +32,9 @@ public class BioEnergyGraph {
 
     private float lastUpdateTime = Float.NaN;
 
-    // ---------------------------------------------------------
+    // =========================================================
     // REGISTER / UNREGISTER
-    // ---------------------------------------------------------
+    // =========================================================
 
     public static void register(ViridianBlocks.VesselBuild vessel) {
         if(vessel == null) return;
@@ -52,9 +53,48 @@ public class BioEnergyGraph {
         rebuild();
     }
 
-    // ---------------------------------------------------------
+    // =========================================================
+    // ADJACENCY
+    // =========================================================
+
+    private static void addAdjacentHearts(
+        ViridianBlocks.VesselBuild vessel,
+        ArrayList<ViridianBlocks.HeartBuild> result
+    ) {
+        // Mindustry proximity handles buildings touching
+        // the Vessel's actual footprint.
+        for(Building other : vessel.proximity) {
+            if(other instanceof ViridianBlocks.HeartBuild) {
+                ViridianBlocks.HeartBuild heart =
+                    (ViridianBlocks.HeartBuild)other;
+
+                if(heart.isAdded() && !result.contains(heart)) {
+                    result.add(heart);
+                }
+            }
+        }
+
+        // Also check diagonal adjacency.
+        for(Point2 point : Geometry.d8) {
+            Building other = Vars.world.build(
+                vessel.tileX() + point.x,
+                vessel.tileY() + point.y
+            );
+
+            if(other instanceof ViridianBlocks.HeartBuild) {
+                ViridianBlocks.HeartBuild heart =
+                    (ViridianBlocks.HeartBuild)other;
+
+                if(heart.isAdded() && !result.contains(heart)) {
+                    result.add(heart);
+                }
+            }
+        }
+    }
+
+    // =========================================================
     // REBUILD NETWORK
-    // ---------------------------------------------------------
+    // =========================================================
 
     public static void rebuild() {
 
@@ -65,7 +105,7 @@ public class BioEnergyGraph {
             return;
         }
 
-        // Remove invalid vessels and clear old graph references.
+        // Remove destroyed vessels and clear old graph references.
         for(int i = registered.size() - 1; i >= 0; i--) {
             ViridianBlocks.VesselBuild vessel = registered.get(i);
 
@@ -75,9 +115,6 @@ public class BioEnergyGraph {
                 vessel.bioGraph = null;
             }
         }
-
-        Set<ViridianBlocks.VesselBuild> known =
-            new HashSet<>(registered);
 
         Map<ViridianBlocks.VesselBuild,
             ArrayList<ViridianBlocks.VesselBuild>> vesselLinks =
@@ -91,7 +128,10 @@ public class BioEnergyGraph {
             ArrayList<ViridianBlocks.VesselBuild>> heartLinks =
                 new HashMap<>();
 
-        // Discover eight-direction connections.
+        Set<ViridianBlocks.VesselBuild> known =
+            new HashSet<>(registered);
+
+        // Find eight-direction Vessel links and adjacent Hearts.
         for(ViridianBlocks.VesselBuild vessel : registered) {
 
             ArrayList<ViridianBlocks.VesselBuild> neighbors =
@@ -101,14 +141,12 @@ public class BioEnergyGraph {
                 new ArrayList<>();
 
             for(Point2 point : Geometry.d8) {
-
                 Building other = Vars.world.build(
                     vessel.tileX() + point.x,
                     vessel.tileY() + point.y
                 );
 
                 if(other instanceof ViridianBlocks.VesselBuild) {
-
                     ViridianBlocks.VesselBuild next =
                         (ViridianBlocks.VesselBuild)other;
 
@@ -117,24 +155,15 @@ public class BioEnergyGraph {
                         && !neighbors.contains(next)) {
                         neighbors.add(next);
                     }
-
-                } else if(other instanceof ViridianBlocks.HeartBuild) {
-
-                    ViridianBlocks.HeartBuild heart =
-                        (ViridianBlocks.HeartBuild)other;
-
-                    if(heart.isAdded()
-                        && !nearbyHearts.contains(heart)) {
-                        nearbyHearts.add(heart);
-                    }
                 }
             }
+
+            addAdjacentHearts(vessel, nearbyHearts);
 
             vesselLinks.put(vessel, neighbors);
             vesselHearts.put(vessel, nearbyHearts);
 
             for(ViridianBlocks.HeartBuild heart : nearbyHearts) {
-
                 ArrayList<ViridianBlocks.VesselBuild> linked =
                     heartLinks.computeIfAbsent(
                         heart,
@@ -163,7 +192,6 @@ public class BioEnergyGraph {
             queue.addLast(start);
 
             while(!queue.isEmpty()) {
-
                 ViridianBlocks.VesselBuild current =
                     queue.removeFirst();
 
@@ -174,20 +202,17 @@ public class BioEnergyGraph {
                     vesselHearts.get(current);
 
                 if(currentHearts != null) {
-
                     graph.adjacentHearts.put(
                         current,
                         new ArrayList<>(currentHearts)
                     );
 
                     for(ViridianBlocks.HeartBuild heart : currentHearts) {
-
                         if(!graph.hearts.contains(heart)) {
                             graph.hearts.add(heart);
                         }
 
-                        // Vessels touching the same Heart
-                        // belong to the same connected network.
+                        // Vessels touching the same Heart share a network.
                         ArrayList<ViridianBlocks.VesselBuild> linked =
                             heartLinks.get(heart);
 
@@ -215,33 +240,19 @@ public class BioEnergyGraph {
         }
     }
 
-    // ---------------------------------------------------------
-    // GRAPH LOOKUP
-    // ---------------------------------------------------------
-
-    public static BioEnergyGraph getGraph(Building building) {
-
-        if(building instanceof ViridianBlocks.VesselBuild) {
-            return ((ViridianBlocks.VesselBuild)building).bioGraph;
-        }
-
-        return null;
-    }
-
-    // ---------------------------------------------------------
+    // =========================================================
     // ADD / REMOVE ENERGY
-    // ---------------------------------------------------------
+    // =========================================================
 
     public void addEnergy(float amount) {
-
         if(amount <= 0f || vessels.isEmpty()) return;
 
         float remaining = amount;
 
         for(ViridianBlocks.VesselBuild vessel : vessels) {
+            if(vessel == null || !vessel.isAdded()) continue;
 
             float free = vessel.maxBioEnergy - vessel.bioEnergy;
-
             if(free <= 0f) continue;
 
             float accepted = Math.min(free, remaining);
@@ -254,13 +265,12 @@ public class BioEnergyGraph {
     }
 
     public void removeEnergy(float amount) {
-
         if(amount <= 0f || vessels.isEmpty()) return;
 
         float remaining = amount;
 
         for(ViridianBlocks.VesselBuild vessel : vessels) {
-
+            if(vessel == null || !vessel.isAdded()) continue;
             if(vessel.bioEnergy <= 0f) continue;
 
             float removed = Math.min(vessel.bioEnergy, remaining);
@@ -272,15 +282,14 @@ public class BioEnergyGraph {
         }
     }
 
-    // ---------------------------------------------------------
+    // =========================================================
     // NETWORK UPDATE
-    // ---------------------------------------------------------
+    // =========================================================
 
     public void update() {
 
-        // A graph must only update once per game frame.
+        // A graph updates at most once per frame.
         if(lastUpdateTime == Time.time) return;
-
         lastUpdateTime = Time.time;
 
         if(vessels.isEmpty()) return;
@@ -291,42 +300,37 @@ public class BioEnergyGraph {
 
         if(transferAmount <= 0f) return;
 
-        // Hysteresis thresholds prevent Heart and Vessel
-        // from continuously transferring energy back and forth.
-        boolean returnedEnergy = false;
-
-        float reserve = ViridianBlocks.VesselBuild.heartReturnReserve;
+        float reserve =
+            ViridianBlocks.VesselBuild.heartReturnReserve;
 
         Map<ViridianBlocks.VesselBuild, Float> returnedByVessel =
             new HashMap<>();
 
-        // STEP 1: Return surplus energy to a low-energy Heart.
-        // Every Vessel retains at least the configured reserve.
+        boolean returnedEnergy = false;
+
+        // STEP 1: Return energy to a Heart below 25%.
+        // Aim for 75%, retaining the configured reserve per Vessel.
         for(ViridianBlocks.HeartBuild heart : hearts) {
 
             if(heart == null || !heart.isAdded()) continue;
+            if(heart.maxBioEnergy <= 0f) continue;
 
-            float returnThreshold = heart.maxBioEnergy * 0.25f;
-            float targetEnergy = heart.maxBioEnergy * 0.75f;
+            float threshold = heart.maxBioEnergy * 0.25f;
+            float target = heart.maxBioEnergy * 0.75f;
 
-            if(heart.bioEnergy >= returnThreshold) continue;
+            if(heart.bioEnergy >= threshold) continue;
 
-            float needed = targetEnergy - heart.bioEnergy;
-
-            if(needed <= 0f) continue;
+            float needed = target - heart.bioEnergy;
 
             for(ViridianBlocks.VesselBuild vessel : vessels) {
-
                 if(needed <= 0f) break;
+                if(vessel == null || !vessel.isAdded()) continue;
 
                 float alreadyReturned =
                     returnedByVessel.getOrDefault(vessel, 0f);
 
-                float available =
-                    vessel.bioEnergy - reserve;
-
-                float rateLeft =
-                    transferAmount - alreadyReturned;
+                float available = vessel.bioEnergy - reserve;
+                float rateLeft = transferAmount - alreadyReturned;
 
                 if(available <= 0f || rateLeft <= 0f) continue;
 
@@ -348,15 +352,13 @@ public class BioEnergyGraph {
             }
         }
 
-        // Do not send energy back to the Vessel network
-        // in the same frame in which energy returned to Heart.
+        // STEP 2: Heart supplies directly connected Vessels
+        // only when above 75%. Do not reverse direction this frame.
         if(!returnedEnergy) {
 
             Map<ViridianBlocks.VesselBuild, Float> receivedByVessel =
                 new HashMap<>();
 
-            // STEP 2: Heart supplies directly adjacent Vessels
-            // when it has sufficient energy.
             for(ViridianBlocks.VesselBuild vessel : vessels) {
 
                 ArrayList<ViridianBlocks.HeartBuild> nearby =
@@ -365,25 +367,19 @@ public class BioEnergyGraph {
                 if(nearby == null) continue;
 
                 for(ViridianBlocks.HeartBuild heart : nearby) {
-
                     if(heart == null || !heart.isAdded()) continue;
+                    if(heart.maxBioEnergy <= 0f) continue;
 
-                    float supplyThreshold =
-                        heart.maxBioEnergy * 0.75f;
-
-                    float available =
-                        heart.bioEnergy - supplyThreshold;
+                    float threshold = heart.maxBioEnergy * 0.75f;
+                    float available = heart.bioEnergy - threshold;
 
                     if(available <= 0f) continue;
 
                     float alreadyReceived =
                         receivedByVessel.getOrDefault(vessel, 0f);
 
-                    float rateLeft =
-                        transferAmount - alreadyReceived;
-
-                    float free =
-                        vessel.maxBioEnergy - vessel.bioEnergy;
+                    float rateLeft = transferAmount - alreadyReceived;
+                    float free = vessel.maxBioEnergy - vessel.bioEnergy;
 
                     if(free <= 0f || rateLeft <= 0f) continue;
 
@@ -403,11 +399,8 @@ public class BioEnergyGraph {
             }
         }
 
-        // STEP 3: Balance energy across the entire network.
-        // Calculate all transfers first, then apply them together.
-        // This avoids creating or losing energy during balancing.
+        // STEP 3: Balance the network without creating or losing energy.
         int count = vessels.size();
-
         if(count <= 1) return;
 
         float total = 0f;
@@ -425,53 +418,39 @@ public class BioEnergyGraph {
         float incomingTotal = 0f;
 
         for(int i = 0; i < count; i++) {
-
             ViridianBlocks.VesselBuild vessel = vessels.get(i);
-
             float energy = vessel.bioEnergy;
 
             if(energy > average) {
-
                 outgoing[i] = Math.min(
                     energy - average,
                     transferAmount
                 );
-
                 outgoingTotal += outgoing[i];
 
             } else if(energy < average) {
-
-                float free =
-                    vessel.maxBioEnergy - energy;
+                float free = vessel.maxBioEnergy - energy;
 
                 incoming[i] = Math.min(
                     average - energy,
-                    Math.min(transferAmount, free)
+                    Math.min(transferAmount, Math.max(0f, free))
                 );
-
                 incomingTotal += incoming[i];
             }
         }
 
-        float transferable = Math.min(
-            outgoingTotal,
-            incomingTotal
-        );
-
+        float transferable = Math.min(outgoingTotal, incomingTotal);
         if(transferable <= 0f) return;
 
-        float outgoingScale =
-            outgoingTotal > 0f
+        float outgoingScale = outgoingTotal > 0f
             ? transferable / outgoingTotal
             : 0f;
 
-        float incomingScale =
-            incomingTotal > 0f
+        float incomingScale = incomingTotal > 0f
             ? transferable / incomingTotal
             : 0f;
 
         for(int i = 0; i < count; i++) {
-
             ViridianBlocks.VesselBuild vessel = vessels.get(i);
 
             float change =
