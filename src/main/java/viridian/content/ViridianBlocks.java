@@ -99,7 +99,6 @@ public class ViridianBlocks {
         }};
     }
 
-
     // =========================================================
     // HEART BUILD
     // =========================================================
@@ -120,16 +119,13 @@ public class ViridianBlocks {
         private float energyTimer = 0f;
         private float recoveryTimer = 0f;
 
-
         public void addBioEnergy(float amount) {
             bioEnergy = Math.min(maxBioEnergy, bioEnergy + amount);
         }
 
-
         public void removeBioEnergy(float amount) {
             bioEnergy = Math.max(0f, bioEnergy - amount);
         }
-
 
         @Override
         public void damage(float amount) {
@@ -137,13 +133,11 @@ public class ViridianBlocks {
             recoveryTimer = 0f;
         }
 
-
         @Override
         public void placed() {
             super.placed();
             BioEnergyGraph.rebuild();
         }
-
 
         @Override
         public void onProximityUpdate() {
@@ -151,15 +145,11 @@ public class ViridianBlocks {
             BioEnergyGraph.rebuild();
         }
 
-
         @Override
         public void onRemoved() {
             super.onRemoved();
-
-            // Rebuild after the old tile has been removed.
             Time.run(1f, BioEnergyGraph::rebuild);
         }
-
 
         @Override
         public void updateTile() {
@@ -195,14 +185,17 @@ public class ViridianBlocks {
         }
     }
 
-
     // =========================================================
     // VESSEL BUILD
     // =========================================================
 
     public static class VesselBuild extends Building {
 
+        // Maximum transfer rate, in Bio-Energy per second.
         public static float transferRatePerSecond = 100000f;
+
+        // Minimum energy retained when returning energy to Heart.
+        public static float heartReturnReserve = 1f;
 
         public float bioEnergy = 0f;
         public float maxBioEnergy = 3f;
@@ -220,16 +213,13 @@ public class ViridianBlocks {
         private float energyTimer = 0f;
         private float recoveryTimer = 0f;
 
-
         public void addBioEnergy(float amount) {
             bioEnergy = Math.min(maxBioEnergy, bioEnergy + amount);
         }
 
-
         public void removeBioEnergy(float amount) {
             bioEnergy = Math.max(0f, bioEnergy - amount);
         }
-
 
         @Override
         public void damage(float amount) {
@@ -237,20 +227,17 @@ public class ViridianBlocks {
             recoveryTimer = 0f;
         }
 
-
         @Override
         public void placed() {
             super.placed();
             BioEnergyGraph.register(this);
         }
 
-
         @Override
         public void onProximityUpdate() {
             super.onProximityUpdate();
-            BioEnergyGraph.register(this);
+            BioEnergyGraph.rebuild();
         }
-
 
         @Override
         public void onRemoved() {
@@ -258,11 +245,9 @@ public class ViridianBlocks {
             super.onRemoved();
         }
 
-
         @Override
         public void updateTile() {
 
-            // Update the shared graph only once per frame.
             if(bioGraph != null) {
                 bioGraph.update();
             }
@@ -298,32 +283,29 @@ public class ViridianBlocks {
         }
     }
 
-
     // =========================================================
     // ENERGY SOURCE
     // =========================================================
 
     public static class EnergySourceBuild extends Building {
 
-        public float production = 500000f;
-
+        // 1,000,000 Bio-Energy per second.
+        public float production = 1000000f;
 
         @Override
         public void updateTile() {
 
             float amount = production * Time.delta / 60f;
 
+            if(amount <= 0f) return;
+
+            // Prefer a connected Vessel network.
             for(Point2 point : Geometry.d8) {
 
                 Building other = Vars.world.build(
                     tileX() + point.x,
                     tileY() + point.y
                 );
-
-                if(other instanceof HeartBuild) {
-                    ((HeartBuild)other).addBioEnergy(amount);
-                    return;
-                }
 
                 if(other instanceof VesselBuild) {
 
@@ -338,24 +320,8 @@ public class ViridianBlocks {
                     return;
                 }
             }
-        }
-    }
 
-
-    // =========================================================
-    // ENERGY DRAIN
-    // =========================================================
-
-    public static class EnergyDrainBuild extends Building {
-
-        public float drain = 1000000f;
-
-
-        @Override
-        public void updateTile() {
-
-            float amount = drain * Time.delta / 60f;
-
+            // If no Vessel is adjacent, supply Heart directly.
             for(Point2 point : Geometry.d8) {
 
                 Building other = Vars.world.build(
@@ -364,9 +330,36 @@ public class ViridianBlocks {
                 );
 
                 if(other instanceof HeartBuild) {
-                    ((HeartBuild)other).removeBioEnergy(amount);
+                    ((HeartBuild)other).addBioEnergy(amount);
                     return;
                 }
+            }
+        }
+    }
+
+    // =========================================================
+    // ENERGY DRAIN
+    // =========================================================
+
+    public static class EnergyDrainBuild extends Building {
+
+        // 2,000,000 Bio-Energy removed per second.
+        public float drain = 2000000f;
+
+        @Override
+        public void updateTile() {
+
+            float amount = drain * Time.delta / 60f;
+
+            if(amount <= 0f) return;
+
+            // Prefer draining the connected Vessel network.
+            for(Point2 point : Geometry.d8) {
+
+                Building other = Vars.world.build(
+                    tileX() + point.x,
+                    tileY() + point.y
+                );
 
                 if(other instanceof VesselBuild) {
 
@@ -378,6 +371,20 @@ public class ViridianBlocks {
                         target.removeBioEnergy(amount);
                     }
 
+                    return;
+                }
+            }
+
+            // If no Vessel is adjacent, drain Heart directly.
+            for(Point2 point : Geometry.d8) {
+
+                Building other = Vars.world.build(
+                    tileX() + point.x,
+                    tileY() + point.y
+                );
+
+                if(other instanceof HeartBuild) {
+                    ((HeartBuild)other).removeBioEnergy(amount);
                     return;
                 }
             }
