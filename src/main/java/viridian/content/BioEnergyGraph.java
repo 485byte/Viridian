@@ -30,6 +30,10 @@ public class BioEnergyGraph {
         ArrayList<ViridianBlocks.HeartBuild>> adjacentHearts =
         new HashMap<>();
 
+    private final Map<ViridianBlocks.VesselBuild,
+        ArrayList<ViridianBlocks.VesselBuild>> adjacentVessels =
+        new HashMap<>();
+
     private float lastUpdateTime = Float.NaN;
 
     // REGISTER / UNREGISTER
@@ -216,6 +220,11 @@ public class BioEnergyGraph {
                     vesselLinks.get(current);
 
                 if(neighbors != null) {
+                    graph.adjacentVessels.put(
+                        current,
+                        new ArrayList<>(neighbors)
+                    );
+
                     for(ViridianBlocks.VesselBuild next : neighbors) {
                         if(visited.add(next)) {
                             queue.addLast(next);
@@ -271,6 +280,7 @@ public class BioEnergyGraph {
     // UPDATE NETWORK
 
     public void update() {
+        // Update each network once per game frame.
         if(lastUpdateTime == Time.time) return;
         lastUpdateTime = Time.time;
 
@@ -282,8 +292,7 @@ public class BioEnergyGraph {
 
         if(transferAmount <= 0f) return;
 
-        // A Vessel should preserve at least this much energy
-        // when returning energy to a Heart.
+        // Minimum energy preserved when returning energy to Heart.
         float reserve = 2f;
 
         Map<ViridianBlocks.VesselBuild, Float> returnedByVessel =
@@ -292,6 +301,7 @@ public class BioEnergyGraph {
         boolean returnedEnergy = false;
 
         // STEP 1: Return energy to Hearts below 25%.
+        // Preserve 2 energy in every Vessel.
 
         for(ViridianBlocks.HeartBuild heart : hearts) {
             if(heart == null || !heart.isAdded()) continue;
@@ -331,6 +341,189 @@ public class BioEnergyGraph {
 
                 needed -= amount;
                 returnedEnergy = true;
+            }
+        }
+
+        // STEP 2: Heart continuously supplies directly connected
+        // Vessels while Heart energy is above 75%.
+        // Vessels below 2 energy receive priority.
+
+        if(!returnedEnergy) {
+            Map<ViridianBlocks.VesselBuild, Float> receivedFromHeart =
+                new HashMap<>();
+
+            // Pass 0: Vessels below 2 energy.
+            // Pass 1: Other directly connected Vessels.
+
+            for(int priorityPass = 0; priorityPass < 2; priorityPass++) {
+                for(ViridianBlocks.VesselBuild vessel : vessels) {
+                    if(vessel == null || !vessel.isAdded()) continue;
+
+                    if(priorityPass == 0 && vessel.bioEnergy >= 2f) {
+                        continue;
+                    }
+
+                    if(priorityPass == 1 && vessel.bioEnergy < 2f) {
+                        continue;
+                    }
+
+                    ArrayList<ViridianBlocks.HeartBuild> nearby =
+                        adjacentHearts.get(vessel);
+
+                    if(nearby == null) continue;
+
+                    for(ViridianBlocks.HeartBuild heart : nearby) {
+                        if(heart == null || !heart.isAdded()) continue;
+                        if(heart.maxBioEnergy <= 0f) continue;
+
+                        float threshold = heart.maxBioEnergy * 0.75f;
+                        float available = heart.bioEnergy - threshold;
+
+                        if(available <= 0f) continue;
+
+                        float alreadyReceived =
+                            receivedFromHeart.getOrDefault(vessel, 0f);
+
+                        float rateLeft =
+                            transferAmount - alreadyReceived;
+
+                        float free =
+                            vessel.maxBioEnergy - vessel.bioEnergy;
+
+                        if(free <= 0f || rateLeft <= 0f) continue;
+
+                        float amount = Math.min(
+                            available,
+                            Math.min(free, rateLeft)
+                        );
+
+                        heart.removeBioEnergy(amount);
+                        vessel.addBioEnergy(amount);
+
+                        receivedFromHeart.put(
+                            vessel,
+                            alreadyReceived + amount
+                        );
+                    }
+                }
+            }
+        }
+
+        // STEP 3: Multi-layer Vessel-to-Vessel transfer.
+        //
+        // First, prioritize Vessels below 2 energy.
+        // Then allow energy to pass through Vessels at 2 energy
+        // so it can reach further layers of the network.
+        //
+        // A sender must retain at least 2 energy.
+        // Repeat across the network to propagate energy through
+        // multiple layers in the same frame.
+
+        int count = vessels.size();
+        if(count <= 1) return;
+
+        Map<ViridianBlocks.VesselBuild, Float> sentThisFrame =
+            new HashMap<>();
+
+        Map<ViridianBlocks.VesselBuild, Float> receivedThisFrame =
+            new HashMap<>();
+
+        for(int round = 0; round < count; round++) {
+
+            boolean transferredInRound = false;
+
+            // First pass: fill Vessels below 2.
+            // Second pass: fill Vessels from 2 toward capacity 3.
+
+            for(int priorityPass = 0; priorityPass < 2; priorityPass++) {
+
+                for(ViridianBlocks.VesselBuild sender : vessels) {
+                    if(sender == null || !sender.isAdded()) continue;
+
+                    float sentAlready =
+                        sentThisFrame.getOrDefault(sender, 0f);
+
+                    float rateLeft = transferAmount - sentAlready;
+
+                    float available = sender.bioEnergy - reserve;
+
+                    if(rateLeft <= 0f || available <= 0f) continue;
+
+                    ArrayList<ViridianBlocks.VesselBuild> neighbors =
+                        adjacentVessels.get(sender);
+
+                    if(neighbors == null) continue;
+
+                    for(ViridianBlocks.VesselBuild receiver : neighbors) {
+                        if(receiver == null || !receiver.isAdded()) continue;
+                        if(receiver == sender) continue;
+
+                        if(priorityPass == 0
+                            && receiver.bioEnergy >= 2f) {
+                            continue;
+                        }
+
+                        if(priorityPass == 1
+                            && (receiver.bioEnergy < 2f
+                                || receiver.bioEnergy
+                                    >= receiver.maxBioEnergy)) {
+                            continue;
+                        }
+
+                        sentAlready =
+                            sentThisFrame.getOrDefault(sender, 0f);
+
+                        rateLeft = transferAmount - sentAlready;
+                        available = sender.bioEnergy - reserve;
+
+                        float receivedAlready =
+                            receivedThisFrame.getOrDefault(receiver, 0f);
+
+                        float receiveRateLeft =
+                            transferAmount - receivedAlready;
+
+                        float free =
+                            receiver.maxBioEnergy - receiver.bioEnergy;
+
+                        if(rateLeft <= 0f
+                            || available <= 0f
+                            || receiveRateLeft <= 0f
+                            || free <= 0f) {
+                            continue;
+                        }
+
+                        float amount = Math.min(
+                            available,
+                            Math.min(
+                                free,
+                                Math.min(rateLeft, receiveRateLeft)
+                            )
+                        );
+
+                        if(amount <= 0f) continue;
+
+                        sender.removeBioEnergy(amount);
+                        receiver.addBioEnergy(amount);
+
+                        sentThisFrame.put(
+                            sender,
+                            sentAlready + amount
+                        );
+
+                        receivedThisFrame.put(
+                            receiver,
+                            receivedAlready + amount
+                        );
+
+                        transferredInRound = true;
+                    }
+                }
+            }
+
+            if(!transferredInRound) break;
+        }
+    }
+}
             }
         }
 
