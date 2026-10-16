@@ -1,3 +1,4 @@
+
 package viridian.content;
 
 import arc.math.geom.Geometry;
@@ -18,6 +19,7 @@ public class ViridianBlocks {
 
     public static Block heart;
     public static Block vessel;
+    public static Block organ;
     public static Block energySource;
     public static Block energyDrain;
 
@@ -73,6 +75,27 @@ public class ViridianBlocks {
             );
         }};
 
+        // ORGAN
+        organ = new Block("viridian-organ") {{
+            size = 2;
+            health = 1000;
+            destructible = true;
+            update = true;
+
+            requirements(Category.effect, with(Items.copper, 10));
+
+            buildType = OrganBuild::new;
+
+            // Displays the energy level of the connected Vessel network.
+            addBar("bio-energy", build ->
+                new Bar(
+                    "Bio-Energy",
+                    Pal.powerBar,
+                    () -> ((OrganBuild)build).networkEnergyFraction()
+                )
+            );
+        }};
+
         // ENERGY SOURCE
         energySource = new Block("viridian-energy-source") {{
             size = 1;
@@ -104,14 +127,12 @@ public class ViridianBlocks {
 
     private static VesselBuild findAdjacentVessel(Building building) {
 
-        // First check buildings touching the actual footprint.
         for(Building other : building.proximity) {
             if(other instanceof VesselBuild) {
                 return (VesselBuild)other;
             }
         }
 
-        // Also check diagonal adjacency.
         if(Vars.world != null) {
             for(Point2 point : Geometry.d8) {
                 Building other = Vars.world.build(
@@ -242,10 +263,7 @@ public class ViridianBlocks {
 
     public static class VesselBuild extends Building {
 
-        // Maximum transfer rate: 100,000 Bio-Energy per second.
         public static float transferRatePerSecond = 100000f;
-
-        // Each Vessel retains at least 1 energy when returning energy.
         public static float heartReturnReserve = 2f;
 
         public float bioEnergy = 0f;
@@ -333,12 +351,94 @@ public class ViridianBlocks {
     }
 
     // =========================================================
+    // ORGAN BUILD
+    // =========================================================
+
+    public static class OrganBuild extends Building {
+
+        // Energy consumed per second from the connected Vessel network.
+        public float consumption = 5f;
+
+        public float recoveryCost = 1f;
+        public float recoveryDelay = 10f;
+        public float recoveryPercent = 0.04f;
+
+        public float starvationDamage = 0.05f;
+
+        private float recoveryTimer = 0f;
+
+        // Find the network connected to an adjacent Vessel.
+        private BioEnergyGraph connectedGraph() {
+            VesselBuild adjacent = findAdjacentVessel(this);
+
+            if(adjacent == null || !adjacent.isAdded()) {
+                return null;
+            }
+
+            return adjacent.bioGraph;
+        }
+
+        // The bar represents the connected network, not stored Organ energy.
+        public float networkEnergyFraction() {
+            BioEnergyGraph graph = connectedGraph();
+
+            if(graph == null) return 0f;
+
+            float capacity = graph.totalCapacity();
+            if(capacity <= 0f) return 0f;
+
+            return Math.min(1f, graph.totalEnergy() / capacity);
+        }
+
+        @Override
+        public void damage(float amount) {
+            super.damage(amount);
+            recoveryTimer = 0f;
+        }
+
+        @Override
+        public void updateTile() {
+
+            BioEnergyGraph graph = connectedGraph();
+
+            // Convert energy per second to energy for this update.
+            float energyCost = consumption * Time.delta / 60f;
+
+            boolean powered =
+                graph != null && graph.consumeEnergy(energyCost);
+
+            // No connected network or insufficient energy:
+            // apply the shared starvation damage rule.
+            if(!powered) {
+                damage(maxHealth * starvationDamage * Time.delta / 60f);
+                recoveryTimer = 0f;
+                return;
+            }
+
+            // Recovery follows the existing Heart/Vessel rule:
+            // wait 10 seconds without taking damage, then spend 1 energy
+            // to recover 4% of maximum HP.
+            if(health < maxHealth) {
+                recoveryTimer += Time.delta;
+
+                if(recoveryTimer >= recoveryDelay * 60f
+                    && graph.consumeEnergy(recoveryCost)) {
+
+                    heal(maxHealth * recoveryPercent);
+                    recoveryTimer = 0f;
+                }
+            } else {
+                recoveryTimer = 0f;
+            }
+        }
+    }
+
+    // =========================================================
     // ENERGY SOURCE
     // =========================================================
 
     public static class EnergySourceBuild extends Building {
 
-        // Produces 1,000,000 Bio-Energy per second.
         public float production = 1000000f;
 
         @Override
@@ -350,13 +450,10 @@ public class ViridianBlocks {
             VesselBuild target = findAdjacentVessel(this);
 
             if(target != null) {
-                // Supply ONLY the Vessel directly beside this Source.
-                // The network graph handles further distribution.
                 target.addBioEnergy(amount);
                 return;
             }
 
-            // If no Vessel is adjacent, supply an adjacent Heart.
             HeartBuild heart = findAdjacentHeart(this);
 
             if(heart != null) {
@@ -371,7 +468,6 @@ public class ViridianBlocks {
 
     public static class EnergyDrainBuild extends Building {
 
-        // Removes 2,000,000 Bio-Energy per second.
         public float drain = 2000000f;
 
         @Override
@@ -383,7 +479,6 @@ public class ViridianBlocks {
             VesselBuild target = findAdjacentVessel(this);
 
             if(target != null) {
-                // Drain the connected Vessel network.
                 if(target.bioGraph != null) {
                     target.bioGraph.removeEnergy(amount);
                 } else {
@@ -393,7 +488,6 @@ public class ViridianBlocks {
                 return;
             }
 
-            // If no Vessel is adjacent, drain an adjacent Heart.
             HeartBuild heart = findAdjacentHeart(this);
 
             if(heart != null) {
