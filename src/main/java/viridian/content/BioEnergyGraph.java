@@ -235,6 +235,34 @@ public class BioEnergyGraph {
         }
     }
 
+    // TOTAL ENERGY IN NETWORK
+
+    public float totalEnergy() {
+        float total = 0f;
+
+        for(ViridianBlocks.VesselBuild vessel : vessels) {
+            if(vessel == null || !vessel.isAdded()) continue;
+
+            total += Math.max(0f, vessel.bioEnergy);
+        }
+
+        return total;
+    }
+
+    // TOTAL NETWORK CAPACITY
+
+    public float totalCapacity() {
+        float total = 0f;
+
+        for(ViridianBlocks.VesselBuild vessel : vessels) {
+            if(vessel == null || !vessel.isAdded()) continue;
+
+            total += Math.max(0f, vessel.maxBioEnergy);
+        }
+
+        return total;
+    }
+
     // ADD ENERGY TO NETWORK
 
     public void addEnergy(float amount) {
@@ -275,6 +303,19 @@ public class BioEnergyGraph {
 
             if(remaining <= 0f) break;
         }
+    }
+
+    // CONSUME ENERGY ONLY WHEN THE NETWORK HAS ENOUGH
+
+    public boolean consumeEnergy(float amount) {
+        if(amount <= 0f) return true;
+
+        if(totalEnergy() + 0.0001f < amount) {
+            return false;
+        }
+
+        removeEnergy(amount);
+        return true;
     }
 
     // UPDATE NETWORK
@@ -393,8 +434,6 @@ public class BioEnergyGraph {
         // STEP 3: Multi-layer Vessel-to-Vessel transfer.
         // Prioritize Vessels below 2 energy.
         // Each sender keeps at least 2 energy.
-        // Repeat rounds to allow energy to travel through
-        // several Vessel layers during the same update.
 
         int count = vessels.size();
         if(count <= 1) return;
