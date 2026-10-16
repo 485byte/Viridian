@@ -486,33 +486,3 @@ public class BioEnergyGraph {
         }
     }
 }
-n(
-                need,
-                Math.min(transferAmount, pool)
-            );
-
-            vessel.addBioEnergy(amount);
-            pool -= amount;
-
-            if(pool <= 0f) break;
-        }
-
-        // Phần pool còn lại nếu có không bị tạo hoặc xóa:
-        // nó chỉ có thể tồn tại do giới hạn tốc độ phân phối.
-        // Năng lượng đã được trừ khỏi nguồn ở trên.
-        if(pool > 0f) {
-            for(int i = 0; i < vessels.size() && pool > 0f; i++) {
-
-                ViridianBlocks.VesselBuild vessel = vessels.get(i);
-
-                float free = vessel.maxBioEnergy - vessel.bioEnergy;
-                if(free <= 0f) continue;
-
-                float amount = Math.min(free, pool);
-
-                vessel.addBioEnergy(amount);
-                pool -= amount;
-            }
-        }
-    }
-}
