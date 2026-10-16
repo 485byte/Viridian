@@ -1,4 +1,3 @@
-
 package viridian.content;
 
 import arc.math.geom.Geometry;
@@ -105,14 +104,14 @@ public class ViridianBlocks {
 
     private static VesselBuild findAdjacentVessel(Building building) {
 
-        // Check buildings adjacent to the actual footprint first.
+        // First check buildings touching the actual footprint.
         for(Building other : building.proximity) {
             if(other instanceof VesselBuild) {
                 return (VesselBuild)other;
             }
         }
 
-        // Also support diagonal connections.
+        // Also check diagonal adjacency.
         if(Vars.world != null) {
             for(Point2 point : Geometry.d8) {
                 Building other = Vars.world.build(
@@ -243,10 +242,10 @@ public class ViridianBlocks {
 
     public static class VesselBuild extends Building {
 
-        // Maximum transfer rate, in Bio-Energy per second.
+        // Maximum transfer rate: 100,000 Bio-Energy per second.
         public static float transferRatePerSecond = 100000f;
 
-        // Minimum energy retained when returning energy to Heart.
+        // Each Vessel retains at least 1 energy when returning energy.
         public static float heartReturnReserve = 1f;
 
         public float bioEnergy = 0f;
@@ -339,7 +338,7 @@ public class ViridianBlocks {
 
     public static class EnergySourceBuild extends Building {
 
-        // 1,000,000 Bio-Energy per second.
+        // Produces 1,000,000 Bio-Energy per second.
         public float production = 1000000f;
 
         @Override
@@ -351,20 +350,9 @@ public class ViridianBlocks {
             VesselBuild target = findAdjacentVessel(this);
 
             if(target != null) {
-
-                // Fill the Vessel directly beside the Source first.
-                float free = target.maxBioEnergy - target.bioEnergy;
-                float accepted = Math.min(Math.max(0f, free), amount);
-
-                target.addBioEnergy(accepted);
-
-                // Distribute any remaining production into its network.
-                float remaining = amount - accepted;
-
-                if(remaining > 0f && target.bioGraph != null) {
-                    target.bioGraph.addEnergy(remaining);
-                }
-
+                // Supply ONLY the Vessel directly beside this Source.
+                // The network graph handles further distribution.
+                target.addBioEnergy(amount);
                 return;
             }
 
@@ -383,7 +371,7 @@ public class ViridianBlocks {
 
     public static class EnergyDrainBuild extends Building {
 
-        // 2,000,000 Bio-Energy removed per second.
+        // Removes 2,000,000 Bio-Energy per second.
         public float drain = 2000000f;
 
         @Override
@@ -395,7 +383,6 @@ public class ViridianBlocks {
             VesselBuild target = findAdjacentVessel(this);
 
             if(target != null) {
-
                 // Drain the connected Vessel network.
                 if(target.bioGraph != null) {
                     target.bioGraph.removeEnergy(amount);
